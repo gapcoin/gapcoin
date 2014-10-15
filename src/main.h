@@ -3,11 +3,11 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#ifndef BITCOIN_MAIN_H
-#define BITCOIN_MAIN_H
+#ifndef GAPCOIN_MAIN_H
+#define GAPCOIN_MAIN_H
 
 #if defined(HAVE_CONFIG_H)
-#include "bitcoin-config.h"
+#include "gapcoin-config.h"
 #endif
 
 #include "bignum.h"
@@ -302,7 +302,7 @@ inline bool AllowFree(double dPriority)
 {
     // Large (in bytes) low-priority (new, small-coin) transactions
     // need a fee.
-    return dPriority > COIN * 144 / 250;
+    return dPriority > COIN * 576 / 250;
 }
 
 // Check whether all inputs of this transaction are valid (no double spends, scripts & sigs, amounts)

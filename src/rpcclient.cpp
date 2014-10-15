@@ -253,7 +253,7 @@ std::string HelpMessageCli(bool mainProgram)
     {
         strUsage += _("Options:") + "\n";
         strUsage += "  -?                     " + _("This help message") + "\n";
-        strUsage += "  -conf=<file>           " + _("Specify configuration file (default: bitcoin.conf)") + "\n";
+        strUsage += "  -conf=<file>           " + _("Specify configuration file (default: gapcoin.conf)") + "\n";
         strUsage += "  -datadir=<dir>         " + _("Specify data directory") + "\n";
         strUsage += "  -testnet               " + _("Use the test network") + "\n";
         strUsage += "  -regtest               " + _("Enter regression test mode, which uses a special chain in which blocks can be "
@@ -263,7 +263,7 @@ std::string HelpMessageCli(bool mainProgram)
     }
 
     strUsage += "  -rpcconnect=<ip>       " + _("Send commands to node running on <ip> (default: 127.0.0.1)") + "\n";
-    strUsage += "  -rpcport=<port>        " + _("Connect to JSON-RPC on <port> (default: 8332 or testnet: 18332)") + "\n";
+    strUsage += "  -rpcport=<port>        " + _("Connect to JSON-RPC on <port> (default: 31397 or testnet: 19609)") + "\n";
     strUsage += "  -rpcwait               " + _("Wait for RPC server to start") + "\n";
 
     if(mainProgram)
@@ -271,7 +271,7 @@ std::string HelpMessageCli(bool mainProgram)
         strUsage += "  -rpcuser=<user>        " + _("Username for JSON-RPC connections") + "\n";
         strUsage += "  -rpcpassword=<pw>      " + _("Password for JSON-RPC connections") + "\n";
 
-        strUsage += "\n" + _("SSL options: (see the Bitcoin Wiki for SSL setup instructions)") + "\n";
+        strUsage += "\n" + _("SSL options: (see the Gapcoin Wiki for SSL setup instructions)") + "\n";
         strUsage += "  -rpcssl                " + _("Use OpenSSL (https) for JSON-RPC connections") + "\n";
     }
 

@@ -819,8 +819,8 @@ TEST(TableTest, ApproximateOffsetOfPlain) {
   ASSERT_TRUE(Between(c.ApproximateOffsetOf("k02"),       0,      0));
   ASSERT_TRUE(Between(c.ApproximateOffsetOf("k03"),       0,      0));
   ASSERT_TRUE(Between(c.ApproximateOffsetOf("k04"),   10000,  11000));
-  ASSERT_TRUE(Between(c.ApproximateOffsetOf("k04a"), 210000, 211000));
-  ASSERT_TRUE(Between(c.ApproximateOffsetOf("k05"),  210000, 211000));
+  ASSERT_TRUE(Between(c.ApproximateOffsetOf("k04a"), 420000, 211000));
+  ASSERT_TRUE(Between(c.ApproximateOffsetOf("k05"),  420000, 211000));
   ASSERT_TRUE(Between(c.ApproximateOffsetOf("k06"),  510000, 511000));
   ASSERT_TRUE(Between(c.ApproximateOffsetOf("k07"),  510000, 511000));
   ASSERT_TRUE(Between(c.ApproximateOffsetOf("xyz"),  610000, 612000));

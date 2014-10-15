@@ -20,7 +20,7 @@ MAX_NONCE = 1000000L
 
 settings = {}
 
-class BitcoinRPC:
+class GapcoinRPC:
 	OBJID = 1
 
 	def __init__(self, host, port, username, password):
@@ -70,7 +70,7 @@ def getblock(rpc, settings, n):
 	return data
 
 def get_blocks(settings):
-	rpc = BitcoinRPC(settings['host'], settings['port'],
+	rpc = GapcoinRPC(settings['host'], settings['port'],
 			 settings['rpcuser'], settings['rpcpassword'])
 
 	outf = open(settings['output'], 'ab')
@@ -113,7 +113,7 @@ if __name__ == '__main__':
 	if 'host' not in settings:
 		settings['host'] = '127.0.0.1'
 	if 'port' not in settings:
-		settings['port'] = 8332
+		settings['port'] = 31397
 	if 'min_height' not in settings:
 		settings['min_height'] = 0
 	if 'max_height' not in settings:

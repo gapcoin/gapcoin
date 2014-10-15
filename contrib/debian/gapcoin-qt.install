@@ -1,0 +1,6 @@
+usr/local/bin/gapcoin-qt usr/bin
+share/pixmaps/gapcoin32.xpm usr/share/pixmaps
+share/pixmaps/gapcoin16.xpm usr/share/pixmaps
+share/pixmaps/gapcoin128.png usr/share/pixmaps
+debian/gapcoin-qt.desktop usr/share/applications
+debian/gapcoin-qt.protocol usr/share/kde4/services/

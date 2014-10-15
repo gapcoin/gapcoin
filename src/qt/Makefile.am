@@ -5,84 +5,84 @@ AM_CPPFLAGS += -I$(top_srcdir)/src \
   -I$(top_builddir)/src/qt/forms \
   $(PROTOBUF_CFLAGS) \
   $(QR_CFLAGS)
-bin_PROGRAMS = bitcoin-qt
-noinst_LIBRARIES = libbitcoinqt.a
+bin_PROGRAMS = gapcoin-qt
+noinst_LIBRARIES = libgapcoinqt.a
 SUBDIRS = . $(BUILD_TEST_QT)
 DIST_SUBDIRS = . test
 
-# bitcoin qt core #
+# gapcoin qt core #
 QT_TS = \
-  locale/bitcoin_ach.ts \
-  locale/bitcoin_af_ZA.ts \
-  locale/bitcoin_ar.ts \
-  locale/bitcoin_be_BY.ts \
-  locale/bitcoin_bg.ts \
-  locale/bitcoin_bs.ts \
-  locale/bitcoin_ca_ES.ts \
-  locale/bitcoin_ca.ts \
-  locale/bitcoin_ca@valencia.ts \
-  locale/bitcoin_cmn.ts \
-  locale/bitcoin_cs.ts \
-  locale/bitcoin_cy.ts \
-  locale/bitcoin_da.ts \
-  locale/bitcoin_de.ts \
-  locale/bitcoin_el_GR.ts \
-  locale/bitcoin_en.ts \
-  locale/bitcoin_eo.ts \
-  locale/bitcoin_es_CL.ts \
-  locale/bitcoin_es_DO.ts \
-  locale/bitcoin_es_MX.ts \
-  locale/bitcoin_es.ts \
-  locale/bitcoin_es_UY.ts \
-  locale/bitcoin_et.ts \
-  locale/bitcoin_eu_ES.ts \
-  locale/bitcoin_fa_IR.ts \
-  locale/bitcoin_fa.ts \
-  locale/bitcoin_fi.ts \
-  locale/bitcoin_fr_CA.ts \
-  locale/bitcoin_fr.ts \
-  locale/bitcoin_gl.ts \
-  locale/bitcoin_gu_IN.ts \
-  locale/bitcoin_he.ts \
-  locale/bitcoin_hi_IN.ts \
-  locale/bitcoin_hr.ts \
-  locale/bitcoin_hu.ts \
-  locale/bitcoin_id_ID.ts \
-  locale/bitcoin_it.ts \
-  locale/bitcoin_ja.ts \
-  locale/bitcoin_ka.ts \
-  locale/bitcoin_kk_KZ.ts \
-  locale/bitcoin_ko_KR.ts \
-  locale/bitcoin_ky.ts \
-  locale/bitcoin_la.ts \
-  locale/bitcoin_lt.ts \
-  locale/bitcoin_lv_LV.ts \
-  locale/bitcoin_mn.ts \
-  locale/bitcoin_ms_MY.ts \
-  locale/bitcoin_nb.ts \
-  locale/bitcoin_nl.ts \
-  locale/bitcoin_pam.ts \
-  locale/bitcoin_pl.ts \
-  locale/bitcoin_pt_BR.ts \
-  locale/bitcoin_pt_PT.ts \
-  locale/bitcoin_ro_RO.ts \
-  locale/bitcoin_ru.ts \
-  locale/bitcoin_sah.ts \
-  locale/bitcoin_sk.ts \
-  locale/bitcoin_sl_SI.ts \
-  locale/bitcoin_sq.ts \
-  locale/bitcoin_sr.ts \
-  locale/bitcoin_sv.ts \
-  locale/bitcoin_th_TH.ts \
-  locale/bitcoin_tr.ts \
-  locale/bitcoin_uk.ts \
-  locale/bitcoin_ur_PK.ts \
-  locale/bitcoin_uz@Cyrl.ts \
-  locale/bitcoin_vi.ts \
-  locale/bitcoin_vi_VN.ts \
-  locale/bitcoin_zh_CN.ts \
-  locale/bitcoin_zh_HK.ts \
-  locale/bitcoin_zh_TW.ts
+  locale/gapcoin_ach.ts \
+  locale/gapcoin_af_ZA.ts \
+  locale/gapcoin_ar.ts \
+  locale/gapcoin_be_BY.ts \
+  locale/gapcoin_bg.ts \
+  locale/gapcoin_bs.ts \
+  locale/gapcoin_ca_ES.ts \
+  locale/gapcoin_ca.ts \
+  locale/gapcoin_ca@valencia.ts \
+  locale/gapcoin_cmn.ts \
+  locale/gapcoin_cs.ts \
+  locale/gapcoin_cy.ts \
+  locale/gapcoin_da.ts \
+  locale/gapcoin_de.ts \
+  locale/gapcoin_el_GR.ts \
+  locale/gapcoin_en.ts \
+  locale/gapcoin_eo.ts \
+  locale/gapcoin_es_CL.ts \
+  locale/gapcoin_es_DO.ts \
+  locale/gapcoin_es_MX.ts \
+  locale/gapcoin_es.ts \
+  locale/gapcoin_es_UY.ts \
+  locale/gapcoin_et.ts \
+  locale/gapcoin_eu_ES.ts \
+  locale/gapcoin_fa_IR.ts \
+  locale/gapcoin_fa.ts \
+  locale/gapcoin_fi.ts \
+  locale/gapcoin_fr_CA.ts \
+  locale/gapcoin_fr.ts \
+  locale/gapcoin_gl.ts \
+  locale/gapcoin_gu_IN.ts \
+  locale/gapcoin_he.ts \
+  locale/gapcoin_hi_IN.ts \
+  locale/gapcoin_hr.ts \
+  locale/gapcoin_hu.ts \
+  locale/gapcoin_id_ID.ts \
+  locale/gapcoin_it.ts \
+  locale/gapcoin_ja.ts \
+  locale/gapcoin_ka.ts \
+  locale/gapcoin_kk_KZ.ts \
+  locale/gapcoin_ko_KR.ts \
+  locale/gapcoin_ky.ts \
+  locale/gapcoin_la.ts \
+  locale/gapcoin_lt.ts \
+  locale/gapcoin_lv_LV.ts \
+  locale/gapcoin_mn.ts \
+  locale/gapcoin_ms_MY.ts \
+  locale/gapcoin_nb.ts \
+  locale/gapcoin_nl.ts \
+  locale/gapcoin_pam.ts \
+  locale/gapcoin_pl.ts \
+  locale/gapcoin_pt_BR.ts \
+  locale/gapcoin_pt_PT.ts \
+  locale/gapcoin_ro_RO.ts \
+  locale/gapcoin_ru.ts \
+  locale/gapcoin_sah.ts \
+  locale/gapcoin_sk.ts \
+  locale/gapcoin_sl_SI.ts \
+  locale/gapcoin_sq.ts \
+  locale/gapcoin_sr.ts \
+  locale/gapcoin_sv.ts \
+  locale/gapcoin_th_TH.ts \
+  locale/gapcoin_tr.ts \
+  locale/gapcoin_uk.ts \
+  locale/gapcoin_ur_PK.ts \
+  locale/gapcoin_uz@Cyrl.ts \
+  locale/gapcoin_vi.ts \
+  locale/gapcoin_vi_VN.ts \
+  locale/gapcoin_zh_CN.ts \
+  locale/gapcoin_zh_HK.ts \
+  locale/gapcoin_zh_TW.ts
 
 QT_FORMS_UI = \
   forms/aboutdialog.ui \
@@ -107,10 +107,10 @@ QT_MOC_CPP = \
   moc_addressbookpage.cpp \
   moc_addresstablemodel.cpp \
   moc_askpassphrasedialog.cpp \
-  moc_bitcoinaddressvalidator.cpp \
-  moc_bitcoinamountfield.cpp \
-  moc_bitcoingui.cpp \
-  moc_bitcoinunits.cpp \
+  moc_gapcoinaddressvalidator.cpp \
+  moc_gapcoinamountfield.cpp \
+  moc_gapcoingui.cpp \
+  moc_gapcoinunits.cpp \
   moc_clientmodel.cpp \
   moc_coincontroldialog.cpp \
   moc_coincontroltreewidget.cpp \
@@ -148,31 +148,31 @@ QT_MOC_CPP = \
   moc_walletmodel.cpp \
   moc_walletview.cpp
 
-BITCOIN_MM = \
+GAPCOIN_MM = \
   macdockiconhandler.mm \
   macnotificationhandler.mm
 
 QT_MOC = \
-  bitcoin.moc \
+  gapcoin.moc \
   intro.moc \
   overviewpage.moc \
   rpcconsole.moc
 
-QT_QRC_CPP = qrc_bitcoin.cpp
-QT_QRC = bitcoin.qrc
+QT_QRC_CPP = qrc_gapcoin.cpp
+QT_QRC = gapcoin.qrc
 
 PROTOBUF_CC = paymentrequest.pb.cc
 PROTOBUF_H = paymentrequest.pb.h
 PROTOBUF_PROTO = paymentrequest.proto
 
-BITCOIN_QT_H = \
+GAPCOIN_QT_H = \
   addressbookpage.h \
   addresstablemodel.h \
   askpassphrasedialog.h \
-  bitcoinaddressvalidator.h \
-  bitcoinamountfield.h \
-  bitcoingui.h \
-  bitcoinunits.h \
+  gapcoinaddressvalidator.h \
+  gapcoinamountfield.h \
+  gapcoingui.h \
+  gapcoinunits.h \
   clientmodel.h \
   coincontroldialog.h \
   coincontroltreewidget.h \
@@ -218,10 +218,10 @@ BITCOIN_QT_H = \
 RES_ICONS = \
   res/icons/add.png \
   res/icons/address-book.png \
-  res/icons/bitcoin.ico \
-  res/icons/bitcoin.png \
-  res/icons/bitcoin_testnet.ico \
-  res/icons/bitcoin_testnet.png \
+  res/icons/gapcoin.ico \
+  res/icons/gapcoin.png \
+  res/icons/gapcoin_testnet.ico \
+  res/icons/gapcoin_testnet.png \
   res/icons/clock1.png \
   res/icons/clock2.png \
   res/icons/clock3.png \
@@ -260,12 +260,12 @@ RES_ICONS = \
   res/icons/tx_output.png \
   res/icons/tx_mined.png
 
-BITCOIN_QT_CPP = \
-  bitcoin.cpp \
-  bitcoinaddressvalidator.cpp \
-  bitcoinamountfield.cpp \
-  bitcoingui.cpp \
-  bitcoinunits.cpp \
+GAPCOIN_QT_CPP = \
+  gapcoin.cpp \
+  gapcoinaddressvalidator.cpp \
+  gapcoinamountfield.cpp \
+  gapcoingui.cpp \
+  gapcoinunits.cpp \
   clientmodel.cpp \
   csvmodelwriter.cpp \
   guiutil.cpp \
@@ -283,7 +283,7 @@ BITCOIN_QT_CPP = \
   winshutdownmonitor.cpp
 
 if ENABLE_WALLET
-BITCOIN_QT_CPP += \
+GAPCOIN_QT_CPP += \
   addressbookpage.cpp \
   addresstablemodel.cpp \
   askpassphrasedialog.cpp \
@@ -319,40 +319,40 @@ RES_IMAGES = \
 
 RES_MOVIES = $(wildcard res/movies/spinner-*.png)
 
-BITCOIN_RC = res/bitcoin-qt-res.rc
+GAPCOIN_RC = res/gapcoin-qt-res.rc
 
-libbitcoinqt_a_CPPFLAGS = $(AM_CPPFLAGS) $(QT_INCLUDES) \
+libgapcoinqt_a_CPPFLAGS = $(AM_CPPFLAGS) $(QT_INCLUDES) \
   -I$(top_srcdir)/src/qt/forms $(QT_DBUS_INCLUDES)
-libbitcoinqt_a_SOURCES = $(BITCOIN_QT_CPP) $(BITCOIN_QT_H) $(QT_FORMS_UI) \
+libgapcoinqt_a_SOURCES = $(GAPCOIN_QT_CPP) $(GAPCOIN_QT_H) $(QT_FORMS_UI) \
   $(QT_QRC) $(QT_TS) $(PROTOBUF_PROTO) $(RES_ICONS) $(RES_IMAGES) $(RES_MOVIES)
 
-nodist_libbitcoinqt_a_SOURCES = $(QT_MOC_CPP) $(QT_MOC) $(PROTOBUF_CC) \
+nodist_libgapcoinqt_a_SOURCES = $(QT_MOC_CPP) $(QT_MOC) $(PROTOBUF_CC) \
   $(PROTOBUF_H) $(QT_QRC_CPP)
 
-BUILT_SOURCES = $(nodist_libbitcoinqt_a_SOURCES)
+BUILT_SOURCES = $(nodist_libgapcoinqt_a_SOURCES)
 
 #Generating these with a half-written protobuf header leads to wacky results.
 #This makes sure it's done.
 $(QT_MOC): $(PROTOBUF_H)
 $(QT_MOC_CPP): $(PROTOBUF_H)
 
-# bitcoin-qt binary #
-bitcoin_qt_CPPFLAGS = $(AM_CPPFLAGS) $(QT_INCLUDES) \
+# gapcoin-qt binary #
+gapcoin_qt_CPPFLAGS = $(AM_CPPFLAGS) $(QT_INCLUDES) \
   -I$(top_srcdir)/src/qt/forms
-bitcoin_qt_SOURCES = bitcoin.cpp
+gapcoin_qt_SOURCES = gapcoin.cpp
 if TARGET_DARWIN
-  bitcoin_qt_SOURCES += $(BITCOIN_MM)
+  gapcoin_qt_SOURCES += $(GAPCOIN_MM)
 endif
 if TARGET_WINDOWS
-  bitcoin_qt_SOURCES += $(BITCOIN_RC)
+  gapcoin_qt_SOURCES += $(GAPCOIN_RC)
 endif
-bitcoin_qt_LDADD = libbitcoinqt.a $(LIBBITCOIN_SERVER)
+gapcoin_qt_LDADD = libgapcoinqt.a $(LIBGAPCOIN_SERVER)
 if ENABLE_WALLET
-bitcoin_qt_LDADD += $(LIBBITCOIN_WALLET)
+gapcoin_qt_LDADD += $(LIBGAPCOIN_WALLET)
 endif
-bitcoin_qt_LDADD += $(LIBBITCOIN_CLI) $(LIBBITCOIN_COMMON) $(LIBLEVELDB) $(LIBMEMENV) \
+gapcoin_qt_LDADD += $(LIBGAPCOIN_CLI) $(LIBGAPCOIN_COMMON) $(LIBLEVELDB) $(LIBMEMENV) \
   $(BOOST_LIBS) $(QT_LIBS) $(QT_DBUS_LIBS) $(QR_LIBS) $(PROTOBUF_LIBS) $(BDB_LIBS)
-bitcoin_qt_LDFLAGS = $(QT_LDFLAGS)
+gapcoin_qt_LDFLAGS = $(QT_LDFLAGS)
 
 # forms/foo.h -> forms/ui_foo.h
 QT_FORMS_H=$(join $(dir $(QT_FORMS_UI)),$(addprefix ui_, $(notdir $(QT_FORMS_UI:.ui=.h))))
@@ -363,15 +363,15 @@ QT_QM=$(QT_TS:.ts=.qm)
 .PHONY: FORCE
 .SECONDARY: $(QT_QM)
 
-bitcoinstrings.cpp: FORCE
-	$(MAKE) -C $(top_srcdir)/src qt/bitcoinstrings.cpp
+gapcoinstrings.cpp: FORCE
+	$(MAKE) -C $(top_srcdir)/src qt/gapcoinstrings.cpp
 
-translate: bitcoinstrings.cpp $(QT_FORMS_UI) $(QT_FORMS_UI) $(BITCOIN_QT_CPP) $(BITCOIN_QT_H) $(BITCOIN_MM)
+translate: gapcoinstrings.cpp $(QT_FORMS_UI) $(QT_FORMS_UI) $(GAPCOIN_QT_CPP) $(GAPCOIN_QT_H) $(GAPCOIN_MM)
 	@test -n $(LUPDATE) || echo "lupdate is required for updating translations"
-	@QT_SELECT=$(QT_SELECT) $(LUPDATE) $^ -locations relative -no-obsolete -ts locale/bitcoin_en.ts
+	@QT_SELECT=$(QT_SELECT) $(LUPDATE) $^ -locations relative -no-obsolete -ts locale/gapcoin_en.ts
 
 $(QT_QRC_CPP): $(QT_QRC) $(QT_QM) $(QT_FORMS_H) $(RES_ICONS) $(RES_IMAGES) $(RES_MOVIES) $(PROTOBUF_H)
-	@cd $(abs_srcdir); test -f $(RCC) && QT_SELECT=$(QT_SELECT) $(RCC) -name bitcoin -o $(abs_builddir)/$@ $< || \
+	@cd $(abs_srcdir); test -f $(RCC) && QT_SELECT=$(QT_SELECT) $(RCC) -name gapcoin -o $(abs_builddir)/$@ $< || \
 	  echo error: could not build $@
 	$(SED) -e '/^\*\*.*Created:/d' $@ > $@.n && mv $@{.n,}
 	$(SED) -e '/^\*\*.*by:/d' $@  > $@.n && mv $@{.n,}

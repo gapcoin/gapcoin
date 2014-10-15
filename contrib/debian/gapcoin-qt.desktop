@@ -1,0 +1,12 @@
+[Desktop Entry]
+Encoding=UTF-8
+Name=Gapcoin
+Comment=Gapcoin P2P Cryptocurrency
+Comment[fr]=Gapcoin, monnaie virtuelle cryptographique pair à pair
+Comment[tr]=Gapcoin, eşten eşe kriptografik sanal para birimi
+Exec=gapcoin-qt %u
+Terminal=false
+Type=Application
+Icon=gapcoin128
+MimeType=x-scheme-handler/gapcoin;
+Categories=Office;Finance;
