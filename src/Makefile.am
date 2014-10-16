@@ -47,6 +47,10 @@ GAPCOIN_CORE_H = \
   leveldbwrapper.h \
   limitedmap.h \
   main.h \
+  PoWCore/src/PoWUtils.h \
+  PoWCore/src/PoW.h \
+  PoWCore/src/PoWProcessor.h \
+  PoWCore/src/Sieve.h \
   miner.h \
   mruset.h \
   netbase.h \
@@ -97,6 +101,9 @@ libgapcoin_server_a_SOURCES = \
   keystore.cpp \
   leveldbwrapper.cpp \
   main.cpp \
+  PoWCore/src/PoWUtils.cpp \
+  PoWCore/src/PoW.cpp \
+  PoWCore/src/Sieve.cpp \
   miner.cpp \
   net.cpp \
   noui.cpp \
@@ -123,6 +130,9 @@ libgapcoin_wallet_a_SOURCES = \
 libgapcoin_common_a_SOURCES = \
   base58.cpp \
   allocators.cpp \
+  PoWCore/src/PoWUtils.cpp \
+  PoWCore/src/PoW.cpp \
+  PoWCore/src/Sieve.cpp \
   chainparams.cpp \
   core.cpp \
   hash.cpp \

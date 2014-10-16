@@ -542,6 +542,13 @@ else
   fi
 fi
 
+
+AC_CHECK_HEADER([gmp.h],, AC_MSG_ERROR(libgmp headers missing),)
+AC_CHECK_LIB([gmp],         [main],, AC_MSG_ERROR(libgmp missing))
+AC_CHECK_HEADER([mpfr.h],, AC_MSG_ERROR(libmpfr headers missing),)
+AC_CHECK_LIB([mpfr],        [main],, AC_MSG_ERROR(libmpfr missing))
+
+
 GAPCOIN_QT_PATH_PROGS([PROTOC], [protoc],$protoc_bin_path)
 
 AC_MSG_CHECKING([whether to build gapcoind])

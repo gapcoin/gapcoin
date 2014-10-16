@@ -7,6 +7,9 @@
 #include "main.h"
 #include "sync.h"
 #include "checkpoints.h"
+#include "wallet.h"
+#include "init.h"
+#include "base58.h"
 
 #include <stdint.h>
 
@@ -14,43 +17,51 @@
 
 using namespace json_spirit;
 using namespace std;
+static PoWUtils *powUtils = new PoWUtils();
 
 void ScriptPubKeyToJSON(const CScript& scriptPubKey, Object& out, bool fIncludeHex);
 
 double GetDifficulty(const CBlockIndex* blockindex)
 {
     // Floating point number that is a multiple of the minimum difficulty,
-    // minimum difficulty = 1.0.
     if (blockindex == NULL)
     {
         if (chainActive.Tip() == NULL)
-            return 1.0;
+            return powUtils->get_readable_difficulty(TestNet() ? PoWUtils::min_test_difficulty : PoWUtils::min_difficulty);
         else
             blockindex = chainActive.Tip();
     }
 
-    int nShift = (blockindex->nBits >> 24) & 0xff;
-
-    double dDiff =
-        (double)0x0000ffff / (double)(blockindex->nBits & 0x00ffffff);
-
-    while (nShift < 29)
-    {
-        dDiff *= 256.0;
-        nShift++;
-    }
-    while (nShift > 29)
-    {
-        dDiff /= 256.0;
-        nShift--;
-    }
-
-    return dDiff;
+    return powUtils->get_readable_difficulty(blockindex->nDifficulty);
 }
 
+static PoWUtils *utils = new PoWUtils();
 
 Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex)
 {
+
+    uint256 hash = block.GetHash();
+    std::vector<uint8_t> vHash(hash.begin(), hash.end());
+    PoW pow(&vHash, block.nShift, &block.nAdd, block.nDifficulty);
+
+    std::vector<uint8_t> vStart, vEnd;
+    pow.get_gap(&vStart, &vEnd);
+
+    std::vector<uint8_t> vDifficulty(block.nAdd.begin(), block.nAdd.end());
+
+    /* insert 0 a the begining to avoid sig problems */
+    vDifficulty.push_back(0);
+    vStart.push_back(0);
+    vEnd.push_back(0);
+
+    CBigNum bnTarget, bnStart, bnEnd;
+    bnTarget.setvch(vDifficulty);
+    bnStart.setvch(vStart);
+    bnEnd.setvch(vEnd);
+
+    CBigNum nChainWork(blockindex->nChainWork);
+    
+
     Object result;
     result.push_back(Pair("hash", block.GetHash().GetHex()));
     CMerkleTx txGen(block.vtx[0]);
@@ -66,9 +77,14 @@ Object blockToJSON(const CBlock& block, const CBlockIndex* blockindex)
     result.push_back(Pair("tx", txs));
     result.push_back(Pair("time", block.GetBlockTime()));
     result.push_back(Pair("nonce", (uint64_t)block.nNonce));
-    result.push_back(Pair("bits", HexBits(block.nBits)));
     result.push_back(Pair("difficulty", GetDifficulty(blockindex)));
-    result.push_back(Pair("chainwork", blockindex->nChainWork.GetHex()));
+    result.push_back(Pair("shift", (uint64_t)block.nShift));
+    result.push_back(Pair("adder", bnTarget.ToString()));
+    result.push_back(Pair("gapstart", bnStart.ToString()));
+    result.push_back(Pair("gapend", bnEnd.ToString()));
+    result.push_back(Pair("gaplen", pow.gap_len()));
+    result.push_back(Pair("merit", utils->get_readable_difficulty(pow.merit())));
+    result.push_back(Pair("chainwork", nChainWork.ToString()));
 
     if (blockindex->pprev)
         result.push_back(Pair("previousblockhash", blockindex->pprev->GetBlockHash().GetHex()));
@@ -252,7 +268,6 @@ Value getblock(const Array& params, bool fHelp)
             "  ],\n"
             "  \"time\" : ttt,          (numeric) The block time in seconds since epoch (Jan 1 1970 GMT)\n"
             "  \"nonce\" : n,           (numeric) The nonce\n"
-            "  \"bits\" : \"1d00ffff\", (string) The bits\n"
             "  \"difficulty\" : x.xxx,  (numeric) The difficulty\n"
             "  \"previousblockhash\" : \"hash\",  (string) The hash of the previous block\n"
             "  \"nextblockhash\" : \"hash\"       (string) The hash of the next block\n"
@@ -443,7 +458,7 @@ Value getblockchaininfo(const Array& params, bool fHelp)
             "  \"bestblockhash\": \"...\", (string) the hash of the currently best block\n"
             "  \"difficulty\": xxxxxx,     (numeric) the current difficulty\n"
             "  \"verificationprogress\": xxxx, (numeric) estimate of verification progress [0..1]\n"
-            "  \"chainwork\": \"xxxx\"     (string) total amount of work in active chain, in hexadecimal\n"
+            "  \"chainwork\": \"xxxx\"     (string) total amount of work in active chain, (primes calculated)\n"
             "}\n"
             "\nExamples:\n"
             + HelpExampleCli("getblockchaininfo", "")
@@ -462,6 +477,163 @@ Value getblockchaininfo(const Array& params, bool fHelp)
     obj.push_back(Pair("bestblockhash", chainActive.Tip()->GetBlockHash().GetHex()));
     obj.push_back(Pair("difficulty",    (double)GetDifficulty()));
     obj.push_back(Pair("verificationprogress", Checkpoints::GuessVerificationProgress(chainActive.Tip())));
-    obj.push_back(Pair("chainwork",     chainActive.Tip()->nChainWork.GetHex()));
+    obj.push_back(Pair("chainwork",     chainActive.Tip()->nChainWork.ToString()));
     return obj;
+}
+
+/**
+ * returns all prime gaps with the given merit if they exist
+ */
+Value listprimerecords(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size() > 1)
+        throw runtime_error(
+            "listprimerecords merit\n"
+            "\nReturns a list of all prime gaps with the given integer merit.\n"
+            "\nArguments:\n"
+            "1. merit        (numeric 1,2,3..) the prime gap merit.\n");
+
+    uint64_t nMerit  = params[0].get_int();
+
+    Array ret;
+
+    for (CBlockIndex* pindex = chainActive.Tip(); pindex; pindex = pindex->pprev)
+    {
+
+        uint256 hash = pindex->GetBlockHash();
+        std::vector<uint8_t> vHash(hash.begin(), hash.end());
+        PoW pow(&vHash, pindex->nShift, &pindex->nAdd, pindex->nDifficulty);
+
+        uint64_t curMerit = pow.merit();
+
+        if (nMerit != (curMerit >> 48))
+            continue;
+
+        std::vector<uint8_t> vStart, vEnd;
+        pow.get_gap(&vStart, &vEnd);
+        
+        std::vector<uint8_t> vDifficulty(pindex->nAdd.begin(), pindex->nAdd.end());
+        
+        /* insert 0 a the begining to avoid sig problems */
+        vDifficulty.push_back(0);
+        vStart.push_back(0);
+        vEnd.push_back(0);
+        
+        CBigNum bnTarget, bnStart, bnEnd;
+        bnTarget.setvch(vDifficulty);
+        bnStart.setvch(vStart);
+        bnEnd.setvch(vEnd);
+
+        CBlock block;
+        ReadBlockFromDisk(block, pindex);
+
+        Object entry;
+        entry.push_back(Pair("time", DateTimeStrFormat("%Y-%m-%d %H:%M:%S UTC", pindex->GetBlockTime()).c_str()));
+        entry.push_back(Pair("epoch", (boost::int64_t) pindex->GetBlockTime()));
+        entry.push_back(Pair("height", pindex->nHeight));
+        entry.push_back(Pair("ismine", pwalletMain->IsMine(block.vtx[0])));
+        CTxDestination address;
+        entry.push_back(Pair("mineraddress", (block.vtx[0].vout.size() > 1)? "multiple" : ExtractDestination(block.vtx[0].vout[0].scriptPubKey, address)? CGapcoinAddress(address).ToString().c_str() : "invalid"));
+        entry.push_back(Pair("gapstart", bnStart.ToString()));
+        entry.push_back(Pair("gapend", bnEnd.ToString()));
+        entry.push_back(Pair("gaplen", pow.gap_len()));
+        entry.push_back(Pair("merit", utils->get_readable_difficulty(curMerit)));
+        ret.push_back(entry);
+    }
+
+    return ret;
+}
+
+struct PrimeRecord {
+  
+  uint64_t nMerit;
+  Object nObj;
+
+  PrimeRecord(uint64_t m, Object o) : nMerit(m), nObj(o) { }
+
+  bool operator < (const PrimeRecord& rec) const
+  {
+      return (nMerit < rec.nMerit);
+  }
+};
+
+/**
+ * returns the best prime gaps
+ */
+Value listbestprimes(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() < 1 || params.size() > 2)
+        throw runtime_error(
+            "listbestprimes amount (min merit)\n"
+            "\nReturns a sorted list of the best prime gaps merits.\n"
+            "\nArguments:\n"
+            "1. amount        (numeric). number of prime gaps to display\n"
+            "2. merit         (numeric, default = 16). minimum merit to display\n");
+
+    uint64_t amount = params[0].get_int();
+    uint64_t nMerit = 16;
+
+    if (params.size() > 1)
+      nMerit = params[1].get_int();
+
+    std::vector<PrimeRecord> records;
+
+    for (CBlockIndex* pindex = chainActive.Tip(); pindex; pindex = pindex->pprev)
+    {
+
+        uint256 hash = pindex->GetBlockHash();
+        std::vector<uint8_t> vHash(hash.begin(), hash.end());
+        PoW pow(&vHash, pindex->nShift, &pindex->nAdd, pindex->nDifficulty);
+
+        uint64_t curMerit = pow.merit();
+
+        if (nMerit > (curMerit >> 48))
+            continue;
+
+        std::vector<uint8_t> vStart, vEnd;
+        pow.get_gap(&vStart, &vEnd);
+        
+        std::vector<uint8_t> vDifficulty(pindex->nAdd.begin(), pindex->nAdd.end());
+        
+        /* insert 0 a the begining to avoid sig problems */
+        vDifficulty.push_back(0);
+        vStart.push_back(0);
+        vEnd.push_back(0);
+        
+        CBigNum bnTarget, bnStart, bnEnd;
+        bnTarget.setvch(vDifficulty);
+        bnStart.setvch(vStart);
+        bnEnd.setvch(vEnd);
+
+        CBlock block;
+        ReadBlockFromDisk(block, pindex);
+
+        Object entry;
+        entry.push_back(Pair("time", DateTimeStrFormat("%Y-%m-%d %H:%M:%S UTC", pindex->GetBlockTime()).c_str()));
+        entry.push_back(Pair("epoch", (boost::int64_t) pindex->GetBlockTime()));
+        entry.push_back(Pair("height", pindex->nHeight));
+        entry.push_back(Pair("ismine", pwalletMain->IsMine(block.vtx[0])));
+        CTxDestination address;
+        entry.push_back(Pair("mineraddress", (block.vtx[0].vout.size() > 1)? "multiple" : ExtractDestination(block.vtx[0].vout[0].scriptPubKey, address)? CGapcoinAddress(address).ToString().c_str() : "invalid"));
+        entry.push_back(Pair("gapstart", bnStart.ToString()));
+        entry.push_back(Pair("gapend", bnEnd.ToString()));
+        entry.push_back(Pair("gaplen", pow.gap_len()));
+        entry.push_back(Pair("merit", utils->get_readable_difficulty(curMerit)));
+
+        PrimeRecord rec(curMerit, entry);
+        records.push_back(rec);
+    }
+
+    std::sort(records.begin(), records.end());
+
+    Array ret;
+
+    for (uint32_t i = (records.size() > (1 + amount)) ? records.size() - (1 + amount) : 0;
+         i < records.size(); 
+         i++) {
+
+      ret.push_back(records[i].nObj);
+    }
+
+    return ret;
 }

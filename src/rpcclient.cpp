@@ -5,7 +5,6 @@
 
 #include "rpcclient.h"
 
-#include "rpcprotocol.h"
 #include "util.h"
 #include "ui_interface.h"
 #include "chainparams.h" // for Params().RPCPort()
@@ -22,6 +21,7 @@
 #include <boost/iostreams/stream.hpp>
 #include <boost/shared_ptr.hpp>
 #include "json/json_spirit_writer_template.h"
+#include "rpcprotocol.h"
 
 using namespace std;
 using namespace boost;
@@ -129,8 +129,11 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "getaddednodeinfo"       && n > 0) ConvertTo<bool>(params[0]);
     if (strMethod == "setgenerate"            && n > 0) ConvertTo<bool>(params[0]);
     if (strMethod == "setgenerate"            && n > 1) ConvertTo<int64_t>(params[1]);
-    if (strMethod == "getnetworkhashps"       && n > 0) ConvertTo<int64_t>(params[0]);
-    if (strMethod == "getnetworkhashps"       && n > 1) ConvertTo<int64_t>(params[1]);
+    if (strMethod == "setgenerate"            && n > 2) ConvertTo<int64_t>(params[2]);
+    if (strMethod == "setgenerate"            && n > 3) ConvertTo<int64_t>(params[3]);
+    if (strMethod == "setgenerate"            && n > 4) ConvertTo<int64_t>(params[4]);
+    if (strMethod == "getnetworkprimesps"     && n > 0) ConvertTo<int64_t>(params[0]);
+    if (strMethod == "getnetworkprimesps"     && n > 1) ConvertTo<int64_t>(params[1]);
     if (strMethod == "sendtoaddress"          && n > 1) ConvertTo<double>(params[1]);
     if (strMethod == "settxfee"               && n > 0) ConvertTo<double>(params[0]);
     if (strMethod == "getreceivedbyaddress"   && n > 1) ConvertTo<int64_t>(params[1]);
@@ -161,6 +164,9 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "listunspent"            && n > 1) ConvertTo<int64_t>(params[1]);
     if (strMethod == "listunspent"            && n > 2) ConvertTo<Array>(params[2]);
     if (strMethod == "getblock"               && n > 1) ConvertTo<bool>(params[1]);
+    if (strMethod == "listprimerecords"       && n > 0) ConvertTo<int64_t>(params[0]);
+    if (strMethod == "listbestprimes"         && n > 0) ConvertTo<int64_t>(params[0]);
+    if (strMethod == "listbestprimes"         && n > 1) ConvertTo<int64_t>(params[1]);
     if (strMethod == "getrawtransaction"      && n > 1) ConvertTo<int64_t>(params[1]);
     if (strMethod == "createrawtransaction"   && n > 0) ConvertTo<Array>(params[0]);
     if (strMethod == "createrawtransaction"   && n > 1) ConvertTo<Object>(params[1]);

@@ -1125,7 +1125,7 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos)
     }
 
     // Check the header
-    if (!CheckProofOfWork(block.GetHash(), block.nBits))
+    if (!CheckProofOfWork(block.GetHash(), block.nShift, &block.nAdd, block.nDifficulty))
         return error("ReadBlockFromDisk : Errors in block header");
 
     return true;
@@ -1180,128 +1180,104 @@ void static PruneOrphanBlocks()
     mapOrphanBlocks.erase(hash);
 }
 
-int64_t GetBlockValue(int nHeight, int64_t nFees)
+
+int64_t GetBlockValue(int nHeight, int64_t nFees, uint64_t nDifficulty)
 {
-    int64_t nSubsidy = 50 * COIN;
+    /* nSubsidy = ((nDifficulty / 2^27) * 10^8) / 2^21 */
+    int64_t nSubsidy = ((nDifficulty >> COINBASE2) * COIN) >> (DIFFBASE2 - COINBASE2);
     int halvings = nHeight / Params().SubsidyHalvingInterval();
 
     // Force block reward to zero when right shift is undefined.
     if (halvings >= 64)
         return nFees;
 
-    // Subsidy is cut in half every 210,000 blocks which will occur approximately every 4 years.
-    nSubsidy >>= halvings;
+
+    // first 1152 blocks with quadratically increasing subsidy
+    if (nHeight < 1152) {
+    
+        int64_t nHeightPow = nHeight * nHeight;
+        nSubsidy = (nSubsidy * nHeightPow) / (1152 * 1152);
+    } else {
+    
+        // Subsidy is cut in half every 420,000 blocks which will occur approximately every 2 years.
+        nSubsidy >>= halvings;
+    }
 
     return nSubsidy + nFees;
 }
+      
 
-static const int64_t nTargetTimespan = 14 * 24 * 60 * 60; // two weeks
+static const int64_t nTargetTimespan = 150; 
 static const int64_t nTargetSpacing = 150;
 static const int64_t nInterval = nTargetTimespan / nTargetSpacing;
+static PoWUtils *powUtils = new PoWUtils();
 
 //
 // minimum amount of work that could possibly be required nTime after
 // minimum work required was nBase
 //
-unsigned int ComputeMinWork(unsigned int nBase, int64_t nTime)
+uint64_t ComputeMinWork(uint64_t nBase, int64_t nTime)
 {
-    const CBigNum &bnLimit = Params().ProofOfWorkLimit();
-    // Testnet has min-difficulty blocks
-    // after nTargetSpacing*2 time between blocks:
-    if (TestNet() && nTime > nTargetSpacing*2)
-        return bnLimit.GetCompact();
-
-    CBigNum bnResult;
-    bnResult.SetCompact(nBase);
-    while (nTime > 0 && bnResult < bnLimit)
-    {
-        // Maximum 400% adjustment...
-        bnResult *= 4;
-        // ... in best-case exactly 4-times-normal target time
-        nTime -= nTargetTimespan*4;
-    }
-    if (bnResult > bnLimit)
-        bnResult = bnLimit;
-    return bnResult.GetCompact();
+    return PoWUtils::max_difficulty_decrease(nBase, nTime, TestNet());
 }
 
-unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock)
+uint64_t GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock)
 {
-    unsigned int nProofOfWorkLimit = Params().ProofOfWorkLimit().GetCompact();
-
     // Genesis block
     if (pindexLast == NULL)
-        return nProofOfWorkLimit;
+        return (TestNet() ? PoWUtils::min_test_difficulty : PoWUtils::min_difficulty);
 
-    // Only change once per interval
-    if ((pindexLast->nHeight+1) % nInterval != 0)
+    if (TestNet())
     {
-        if (TestNet())
-        {
-            // Special difficulty rule for testnet:
-            // If the new block's timestamp is more than 2* 10 minutes
-            // then allow mining of a min-difficulty block.
-            if (pblock->nTime > pindexLast->nTime + nTargetSpacing*2)
-                return nProofOfWorkLimit;
-            else
-            {
-                // Return the last non-special-min-difficulty-rules-block
-                const CBlockIndex* pindex = pindexLast;
-                while (pindex->pprev && pindex->nHeight % nInterval != 0 && pindex->nBits == nProofOfWorkLimit)
-                    pindex = pindex->pprev;
-                return pindex->nBits;
-            }
-        }
-        return pindexLast->nBits;
+        // Special difficulty rule for testnet:
+        // If the new block's timestamp is more than 100 * 2:30 minutes
+        // then allow mining of a min-difficulty block.
+        if (pblock->nTime > pindexLast->nTime + nTargetSpacing*100)
+            return PoWUtils::min_test_difficulty;
     }
 
-    // Go back by what we want to be 14 days worth of blocks
+    // don't use genesis block
     const CBlockIndex* pindexFirst = pindexLast;
-    for (int i = 0; pindexFirst && i < nInterval-1; i++)
+    if (pindexFirst->pprev && pindexFirst->pprev->pprev)
         pindexFirst = pindexFirst->pprev;
-    assert(pindexFirst);
 
     // Limit adjustment step
     int64_t nActualTimespan = pindexLast->GetBlockTime() - pindexFirst->GetBlockTime();
-    LogPrintf("  nActualTimespan = %d  before bounds\n", nActualTimespan);
-    if (nActualTimespan < nTargetTimespan/4)
-        nActualTimespan = nTargetTimespan/4;
-    if (nActualTimespan > nTargetTimespan*4)
-        nActualTimespan = nTargetTimespan*4;
+
+    // if prev block not avilable asume optimal timespan
+    if (pindexFirst == pindexLast)
+        nActualTimespan = nTargetSpacing;
+    
+    // do not divide by zero (or negative number)
+    if (nActualTimespan < 1)
+      nActualTimespan = 1;
 
     // Retarget
-    CBigNum bnNew;
-    bnNew.SetCompact(pindexLast->nBits);
-    bnNew *= nActualTimespan;
-    bnNew /= nTargetTimespan;
-
-    if (bnNew > Params().ProofOfWorkLimit())
-        bnNew = Params().ProofOfWorkLimit();
+    uint64_t nextDifficulty = powUtils->next_difficulty(pindexLast->nDifficulty, nActualTimespan, TestNet());
 
     /// debug print
     LogPrintf("GetNextWorkRequired RETARGET\n");
     LogPrintf("nTargetTimespan = %d    nActualTimespan = %d\n", nTargetTimespan, nActualTimespan);
-    LogPrintf("Before: %08x  %s\n", pindexLast->nBits, CBigNum().SetCompact(pindexLast->nBits).getuint256().ToString());
-    LogPrintf("After:  %08x  %s\n", bnNew.GetCompact(), bnNew.getuint256().ToString());
+    LogPrintf("Before: %016llx  %F\n", pindexLast->nDifficulty, powUtils->get_readable_difficulty(pindexLast->nDifficulty));;
+    LogPrintf("After:  %016llx  %F\n", nextDifficulty, powUtils->get_readable_difficulty(nextDifficulty));
 
-    return bnNew.GetCompact();
+    return nextDifficulty;
 }
 
-bool CheckProofOfWork(uint256 hash, unsigned int nBits)
-{
-    CBigNum bnTarget;
-    bnTarget.SetCompact(nBits);
 
-    // Check range
-    if (bnTarget <= 0 || bnTarget > Params().ProofOfWorkLimit())
-        return error("CheckProofOfWork() : nBits below minimum work");
+bool CheckProofOfWork(const uint256 hash, const uint16_t nShift, const std::vector<uint8_t> *const nAdd, const uint64_t nDifficulty)
+{
+    std::vector<uint8_t> vHash(hash.begin(), hash.end());
+  
+    PoW pow(&vHash, nShift, nAdd, nDifficulty);
 
     // Check proof of work matches claimed amount
-    if (hash > bnTarget.getuint256())
-        return error("CheckProofOfWork() : hash doesn't match nBits");
+    if (!pow.valid())
+        return error("CheckProofOfWork() : hash does not match nDifficulty");
 
     return true;
 }
+      
 
 // Return maximum amount of blocks that other nodes claim to have
 int GetNumBlocksOfPeers()
@@ -1473,7 +1449,7 @@ void UpdateTime(CBlockHeader& block, const CBlockIndex* pindexPrev)
 
     // Updating time can change work required on testnet:
     if (TestNet())
-        block.nBits = GetNextWorkRequired(pindexPrev, &block);
+        block.nDifficulty = GetNextWorkRequired(pindexPrev, &block);
 }
 
 
@@ -1835,10 +1811,10 @@ bool ConnectBlock(CBlock& block, CValidationState& state, CBlockIndex* pindex, C
     if (fBenchmark)
         LogPrintf("- Connect %u transactions: %.2fms (%.3fms/tx, %.3fms/txin)\n", (unsigned)block.vtx.size(), 0.001 * nTime, 0.001 * nTime / block.vtx.size(), nInputs <= 1 ? 0 : 0.001 * nTime / (nInputs-1));
 
-    if (block.vtx[0].GetValueOut() > GetBlockValue(pindex->nHeight, nFees))
+    if (block.vtx[0].GetValueOut() > GetBlockValue(pindex->nHeight, nFees, pindex->nDifficulty))
         return state.DoS(100,
                          error("ConnectBlock() : coinbase pays too much (actual=%d vs limit=%d)",
-                               block.vtx[0].GetValueOut(), GetBlockValue(pindex->nHeight, nFees)),
+                               block.vtx[0].GetValueOut(), GetBlockValue(pindex->nHeight, nFees, pindex->nDifficulty)),
                                REJECT_INVALID, "bad-cb-amount");
 
     if (!control.Wait())
@@ -2300,7 +2276,7 @@ bool CheckBlock(const CBlock& block, CValidationState& state, bool fCheckPOW, bo
                          REJECT_INVALID, "bad-blk-length");
 
     // Check proof of work matches claimed amount
-    if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits))
+    if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nShift, &block.nAdd, block.nDifficulty))
         return state.DoS(50, error("CheckBlock() : proof of work failed"),
                          REJECT_INVALID, "high-hash");
 
@@ -2374,7 +2350,7 @@ bool AcceptBlock(CBlock& block, CValidationState& state, CDiskBlockPos* dbp)
         nHeight = pindexPrev->nHeight+1;
 
         // Check proof of work
-        if (block.nBits != GetNextWorkRequired(pindexPrev, &block))
+        if (block.nDifficulty != GetNextWorkRequired(pindexPrev, &block))
             return state.DoS(100, error("AcceptBlock() : incorrect proof of work"),
                              REJECT_INVALID, "bad-diffbits");
 
@@ -2517,11 +2493,8 @@ bool ProcessBlock(CValidationState &state, CNode* pfrom, CBlock* pblock, CDiskBl
             return state.DoS(100, error("ProcessBlock() : block with timestamp before last checkpoint"),
                              REJECT_CHECKPOINT, "time-too-old");
         }
-        CBigNum bnNewBlock;
-        bnNewBlock.SetCompact(pblock->nBits);
-        CBigNum bnRequired;
-        bnRequired.SetCompact(ComputeMinWork(pcheckpoint->nBits, deltaTime));
-        if (bnNewBlock > bnRequired)
+
+        if (pblock->nDifficulty < ComputeMinWork(pcheckpoint->nDifficulty, deltaTime))
         {
             return state.DoS(100, error("ProcessBlock() : block with too little proof-of-work"),
                              REJECT_INVALID, "bad-diffbits");

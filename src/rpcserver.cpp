@@ -96,15 +96,24 @@ Value ValueFromAmount(int64_t amount)
     return (double)amount / (double)COIN;
 }
 
-std::string HexBits(unsigned int nBits)
+
+std::string HexBits(uint64_t nDifficulty)
 {
     union {
-        int32_t nBits;
-        char cBits[4];
-    } uBits;
-    uBits.nBits = htonl((int32_t)nBits);
-    return HexStr(BEGIN(uBits.cBits), END(uBits.cBits));
+        int64_t nDifficulty;
+        char cDifficulty[8];
+    } uDifficulty;
+
+    int num = 42;
+    if(*(char *)&num == 42) //test big/little endian
+      uDifficulty.nDifficulty = (((uint64_t) htonl((uint32_t) nDifficulty)) << 32) + 
+                    htonl((uint32_t) (nDifficulty >> 32));
+    else 
+      uDifficulty.nDifficulty = nDifficulty;
+
+    return HexStr(BEGIN(uDifficulty.cDifficulty), END(uDifficulty.cDifficulty));
 }
+      
 
 uint256 ParseHashV(const Value& v, string strName)
 {
@@ -248,11 +257,13 @@ static const CRPCCommand vRPCCommands[] =
     { "gettxout",               &gettxout,               true,      false,      false },
     { "gettxoutsetinfo",        &gettxoutsetinfo,        true,      false,      false },
     { "verifychain",            &verifychain,            true,      false,      false },
+    { "listprimerecords",       &listprimerecords,       false,     false,      false },
+    { "listbestprimes",         &listbestprimes,         false,     false,      false },
 
     /* Mining */
     { "getblocktemplate",       &getblocktemplate,       true,      false,      false },
     { "getmininginfo",          &getmininginfo,          true,      false,      false },
-    { "getnetworkhashps",       &getnetworkhashps,       true,      false,      false },
+    { "getnetworkprimesps",     &getnetworkprimesps,     true,      false,      false },
     { "submitblock",            &submitblock,            false,     false,      false },
 
     /* Raw transactions */
@@ -311,7 +322,7 @@ static const CRPCCommand vRPCCommands[] =
 
     /* Wallet-enabled mining */
     { "getgenerate",            &getgenerate,            true,      false,      false },
-    { "gethashespersec",        &gethashespersec,        true,      false,      false },
+    { "getprimespersec",        &getprimespersec,        true,      false,      false },
     { "getwork",                &getwork,                true,      false,      true  },
     { "setgenerate",            &setgenerate,            true,      true,       false },
 #endif // ENABLE_WALLET

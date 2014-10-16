@@ -51,7 +51,7 @@ void ShutdownRPCMining()
 }
 #endif
 
-// Return average network hashes per second based on the last 'lookup' blocks,
+// Return average network primes per second based on the last 'lookup' blocks,
 // or from the last difficulty change if 'lookup' is nonpositive.
 // If 'height' is nonnegative, compute the estimate at the time when a given block was found.
 Value GetNetworkHashPS(int lookup, int height) {
@@ -74,7 +74,8 @@ Value GetNetworkHashPS(int lookup, int height) {
     CBlockIndex *pb0 = pb;
     int64_t minTime = pb0->GetBlockTime();
     int64_t maxTime = minTime;
-    for (int i = 0; i < lookup; i++) {
+    /* exclude the genesis block */
+    for (int i = 0; i < lookup && pb0->pprev->pprev; i++) {
         pb0 = pb0->pprev;
         int64_t time = pb0->GetBlockTime();
         minTime = std::min(time, minTime);
@@ -91,12 +92,12 @@ Value GetNetworkHashPS(int lookup, int height) {
     return (int64_t)(workDiff.getdouble() / timeDiff);
 }
 
-Value getnetworkhashps(const Array& params, bool fHelp)
+Value getnetworkprimesps(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() > 2)
         throw runtime_error(
-            "getnetworkhashps ( blocks height )\n"
-            "\nReturns the estimated network hashes per second based on the last n blocks.\n"
+            "getnetworkprimesps ( blocks height )\n"
+            "\nReturns the estimated network primes per second based on the last n blocks.\n"
             "Pass in [blocks] to override # of blocks, -1 specifies since last difficulty change.\n"
             "Pass in [height] to estimate the network speed at the time when a certain block was found.\n"
             "\nArguments:\n"
@@ -105,8 +106,8 @@ Value getnetworkhashps(const Array& params, bool fHelp)
             "\nResult:\n"
             "x             (numeric) Hashes per second estimated\n"
             "\nExamples:\n"
-            + HelpExampleCli("getnetworkhashps", "")
-            + HelpExampleRpc("getnetworkhashps", "")
+            + HelpExampleCli("getnetworkprimesps", "")
+            + HelpExampleRpc("getnetworkprimesps", "")
        );
 
     return GetNetworkHashPS(params.size() > 0 ? params[0].get_int() : 120, params.size() > 1 ? params[1].get_int() : -1);
@@ -137,9 +138,9 @@ Value getgenerate(const Array& params, bool fHelp)
 
 Value setgenerate(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 1 || params.size() > 2)
+    if (fHelp || params.size() < 1 || params.size() > 5)
         throw runtime_error(
-            "setgenerate generate ( genproclimit )\n"
+            "setgenerate generate ( genproclimit ) ( sievesize ) ( sieveprimes ) ( shift )\n"
             "\nSet 'generate' true or false to turn generation on or off.\n"
             "Generation is limited to 'genproclimit' processors, -1 is unlimited.\n"
             "See the getgenerate call for the current setting.\n"
@@ -147,6 +148,10 @@ Value setgenerate(const Array& params, bool fHelp)
             "1. generate         (boolean, required) Set to true to turn on generation, off to turn off.\n"
             "2. genproclimit     (numeric, optional) Set the processor limit for when generation is on. Can be -1 for unlimited.\n"
             "                    Note: in -regtest mode, genproclimit controls how many blocks are generated immediately.\n"
+            "3. sievesize        (numeric, optional) Sets the size of the prime sieve.\n"
+            "4. sieveprimes      (numeric, optional) Sets the amount of primes used in the sieve.\n"
+            "5. shift            (numeric, optional) Sets the header shift.\n"
+            "                    Note: sieve size can only have 2^shift size.\n"
             "\nExamples:\n"
             "\nSet the generation on with a limit of one processor\n"
             + HelpExampleCli("setgenerate", "true 1") +
@@ -171,6 +176,32 @@ Value setgenerate(const Array& params, bool fHelp)
         nGenProcLimit = params[1].get_int();
         if (nGenProcLimit == 0)
             fGenerate = false;
+    }
+
+    if (params.size() > 2)
+    {
+        nMiningSieveSize = (params[2].get_int() < 1000) ? 1000 : params[2].get_int();
+
+        if (nMiningShift < 64 && nMiningSieveSize > (((uint64_t) 1) << nMiningShift))
+           nMiningSieveSize = (((uint64_t) 1) << nMiningShift);
+    }
+
+    if (params.size() > 3)
+    {
+        nMiningPrimes = (params[3].get_int() < 1000) ? 1000 : params[3].get_int();
+    }
+
+    if (params.size() > 4)
+    {
+        if (params[4].get_int() < 14)
+            nMiningShift = 14;
+        else if (params[4].get_int() >= (1 << 16))
+            nMiningShift = (1 << 16) - 1;
+        else
+            nMiningShift = params[4].get_int();
+
+        if (nMiningShift < 64 && nMiningSieveSize > (((uint64_t) 1) << nMiningShift))
+           nMiningSieveSize = (((uint64_t) 1) << nMiningShift);
     }
 
     // -regtest mode: don't return until nGenProcLimit blocks are generated
@@ -211,26 +242,25 @@ Value setgenerate(const Array& params, bool fHelp)
     return Value::null;
 }
 
-Value gethashespersec(const Array& params, bool fHelp)
+Value getprimespersec(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
         throw runtime_error(
-            "gethashespersec\n"
-            "\nReturns a recent hashes per second performance measurement while generating.\n"
+            "getprimespersec\n"
+            "\nReturns a recent primes per second performance measurement while generating.\n"
             "See the getgenerate and setgenerate calls to turn generation on and off.\n"
             "\nResult:\n"
-            "n            (numeric) The recent hashes per second when generation is on (will return 0 if generation is off)\n"
+            "n            (numeric) The recent primes per second when generation is on (will return 0 if generation is off)\n"
             "\nExamples:\n"
-            + HelpExampleCli("gethashespersec", "")
-            + HelpExampleRpc("gethashespersec", "")
+            + HelpExampleCli("getprimespersec", "")
+            + HelpExampleRpc("getprimespersec", "")
         );
 
-    if (GetTimeMillis() - nHPSTimerStart > 8000)
-        return (int64_t)0;
     return (int64_t)dHashesPerSec;
 }
 #endif
 
+static PoWUtils *powUtils = new PoWUtils;
 
 Value getmininginfo(const Array& params, bool fHelp)
 {
@@ -247,7 +277,13 @@ Value getmininginfo(const Array& params, bool fHelp)
             "  \"errors\": \"...\"          (string) Current errors\n"
             "  \"generate\": true|false     (boolean) If the generation is on or off (see getgenerate or setgenerate calls)\n"
             "  \"genproclimit\": n          (numeric) The processor limit for generation. -1 if no generation. (see getgenerate or setgenerate calls)\n"
-            "  \"hashespersec\": n          (numeric) The hashes per second of the generation, or 0 if no generation.\n"
+            "  \"sievesize\": n             (numeric, optional) The size of the prime sieve.\n"
+            "  \"sieveprimes\": n           (numeric, optional) The amount of primes used in the sieve.\n"
+            "  \"shift\": n                 (numeric, optional) The header shift.\n"
+            "  \"primespersec\": n          (numeric) The primes per second of the generation, or 0 if no generation.\n"
+            "  \"10gapsperhour\": xxx.xxxxx (numeric) The found 10 gaps per hour\n"
+            "  \"15gapsperhour\": xxx.xxxxx (numeric) The found 15 gaps per hour\n"
+            "  \"gapsperday\": xxx.xxxxx    (numeric) The estimated (difficulty) gaps per day\n"
             "  \"pooledtx\": n              (numeric) The size of the mem pool\n"
             "  \"testnet\": true|false      (boolean) If using testnet or not\n"
             "}\n"
@@ -256,25 +292,53 @@ Value getmininginfo(const Array& params, bool fHelp)
             + HelpExampleRpc("getmininginfo", "")
         );
 
+    uint64_t difficulty = 0;
+    if (chainActive.Tip() == NULL)
+        difficulty = (TestNet() ? PoWUtils::min_test_difficulty : PoWUtils::min_difficulty);
+    else
+        difficulty = chainActive.Tip()->nDifficulty;
+
     Object obj;
     obj.push_back(Pair("blocks",           (int)chainActive.Height()));
     obj.push_back(Pair("currentblocksize", (uint64_t)nLastBlockSize));
     obj.push_back(Pair("currentblocktx",   (uint64_t)nLastBlockTx));
     obj.push_back(Pair("difficulty",       (double)GetDifficulty()));
     obj.push_back(Pair("errors",           GetWarnings("statusbar")));
-    obj.push_back(Pair("genproclimit",     (int)GetArg("-genproclimit", -1)));
-    obj.push_back(Pair("networkhashps",    getnetworkhashps(params, false)));
-    obj.push_back(Pair("pooledtx",         (uint64_t)mempool.size()));
-    obj.push_back(Pair("testnet",          TestNet()));
 #ifdef ENABLE_WALLET
     obj.push_back(Pair("generate",         getgenerate(params, false)));
-    obj.push_back(Pair("hashespersec",     gethashespersec(params, false)));
 #endif
+    obj.push_back(Pair("genproclimit",     (int)GetArg("-genproclimit", -1)));
+#ifdef ENABLE_WALLET
+    obj.push_back(Pair("sievesize",        nMiningSieveSize));
+    obj.push_back(Pair("sieveprimes",      nMiningPrimes));
+    obj.push_back(Pair("shift",            nMiningShift));
+    obj.push_back(Pair("primespersec",     getprimespersec(params, false)));
+    obj.push_back(Pair("10gapsperhour",    d10GapsPerHour));
+    obj.push_back(Pair("15gapsperhour",    d15GapsPerHour));
+    obj.push_back(Pair("gapsperday",       powUtils->gaps_per_day(dHashesPerSec, difficulty)));
+#endif
+    obj.push_back(Pair("networkprimesps",    getnetworkprimesps(params, false)));
+    obj.push_back(Pair("pooledtx",         (uint64_t)mempool.size()));
+    obj.push_back(Pair("testnet",          TestNet()));
     return obj;
 }
 
 
 #ifdef ENABLE_WALLET
+
+static inline void CBlockToCharAry(CBlock* pblock, char* pdata)
+{
+
+    memcpy(pdata,      (void *) &pblock->nVersion,      4);
+    memcpy(pdata +  4, pblock->hashPrevBlock.begin(),  32);
+    memcpy(pdata + 36, pblock->hashMerkleRoot.begin(), 32);
+    memcpy(pdata + 68, (void *) &pblock->nTime,         4);
+    memcpy(pdata + 72, (void *) &pblock->nDifficulty,   8);
+}
+
+/**
+ * the block 'data' should be block header + shift + add
+ */
 Value getwork(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() > 1)
@@ -286,10 +350,9 @@ Value getwork(const Array& params, bool fHelp)
             "1. \"data\"       (string, optional) The hex encoded data to solve\n"
             "\nResult (when 'data' is not specified):\n"
             "{\n"
-            "  \"midstate\" : \"xxxx\",   (string) The precomputed hash state after hashing the first half of the data (DEPRECATED)\n" // deprecated
             "  \"data\" : \"xxxxx\",      (string) The block data\n"
-            "  \"hash1\" : \"xxxxx\",     (string) The formatted hash buffer for second hash (DEPRECATED)\n" // deprecated
-            "  \"target\" : \"xxxx\"      (string) The little endian hash target\n"
+            "  \"hash\" : \"xxxxx\",      (string) The block hash\n" 
+            "  \"difficulty\" : \"xxxx\"  (numeric) The current difficulty\n"
             "}\n"
             "\nResult (when 'data' is specified):\n"
             "true|false       (boolean) If solving the block specified in the 'data' was successfull\n"
@@ -357,43 +420,47 @@ Value getwork(const Array& params, bool fHelp)
         // Save
         mapNewBlock[pblock->hashMerkleRoot] = make_pair(pblock, pblock->vtx[0].vin[0].scriptSig);
 
-        // Pre-build hash buffers
-        char pmidstate[32];
-        char pdata[128];
-        char phash1[64];
-        FormatHashBuffers(pblock, pmidstate, pdata, phash1);
-
-        uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+        char pdata[80];
+        CBlockToCharAry(pblock, pdata);
 
         Object result;
-        result.push_back(Pair("midstate", HexStr(BEGIN(pmidstate), END(pmidstate)))); // deprecated
-        result.push_back(Pair("data",     HexStr(BEGIN(pdata), END(pdata))));
-        result.push_back(Pair("hash1",    HexStr(BEGIN(phash1), END(phash1)))); // deprecated
-        result.push_back(Pair("target",   HexStr(BEGIN(hashTarget), END(hashTarget))));
+        result.push_back(Pair("data",         HexStr(BEGIN(pdata), END(pdata))));
+        result.push_back(Pair("hash",         pblock->GetHash().GetHex()));
+        result.push_back(Pair("difficulty",   pblock->nDifficulty));
         return result;
     }
     else
     {
         // Parse parameters
         vector<unsigned char> vchData = ParseHex(params[0].get_str());
-        if (vchData.size() != 128)
+
+        /**
+         * min size block header + shift (2 Byte) + adder (1 Byte)
+         */
+        if (vchData.size() <= 86)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter");
+
+
         CBlock* pdata = (CBlock*)&vchData[0];
 
-        // Byte reverse
-        for (int i = 0; i < 128/4; i++)
-            ((unsigned int*)pdata)[i] = ByteReverse(((unsigned int*)pdata)[i]);
 
         // Get saved block
         if (!mapNewBlock.count(pdata->hashMerkleRoot))
             return false;
         CBlock* pblock = mapNewBlock[pdata->hashMerkleRoot].first;
 
-        pblock->nTime = pdata->nTime;
+        /* save adder */
+        pblock->nAdd.clear();
+        for (unsigned int i = 86; i < vchData.size(); i++) {
+          pblock->nAdd.push_back(vchData[i]);
+        }
+
+        pblock->nTime  = pdata->nTime;
         pblock->nNonce = pdata->nNonce;
+        pblock->nShift = pdata->nShift;
         pblock->vtx[0].vin[0].scriptSig = mapNewBlock[pdata->hashMerkleRoot].second;
         pblock->hashMerkleRoot = pblock->BuildMerkleTree();
-
+        
         assert(pwalletMain != NULL);
         return CheckWork(pblock, *pwalletMain, *pMiningKey);
     }
@@ -443,7 +510,6 @@ Value getblocktemplate(const Array& params, bool fHelp)
             "  },\n"
             "  \"coinbasevalue\" : n,               (numeric) maximum allowable input to coinbase transaction, including the generation award and transaction fees (in Satoshis)\n"
             "  \"coinbasetxn\" : { ... },           (json object) information for coinbase transaction\n"
-            "  \"target\" : \"xxxx\",               (string) The hash target\n"
             "  \"mintime\" : xxx,                   (numeric) The minimum timestamp appropriate for next block time in seconds since epoch (Jan 1 1970 GMT)\n"
             "  \"mutable\" : [                      (array of string) list of ways the block template may be changed \n"
             "     \"value\"                         (string) A way the block template may be changed, e.g. 'time', 'transactions', 'prevblock'\n"
@@ -453,7 +519,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
             "  \"sigoplimit\" : n,                 (numeric) limit of sigops in blocks\n"
             "  \"sizelimit\" : n,                  (numeric) limit of block size\n"
             "  \"curtime\" : ttt,                  (numeric) current timestamp in seconds since epoch (Jan 1 1970 GMT)\n"
-            "  \"bits\" : \"xxx\",                 (string) compressed target of next block\n"
+            "  \"bits\" : \"xxx\",                 (string) target of next block\n"
             "  \"height\" : n                      (numeric) The height of the next block\n"
             "}\n"
 
@@ -559,8 +625,6 @@ Value getblocktemplate(const Array& params, bool fHelp)
     Object aux;
     aux.push_back(Pair("flags", HexStr(COINBASE_FLAGS.begin(), COINBASE_FLAGS.end())));
 
-    uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
-
     static Array aMutable;
     if (aMutable.empty())
     {
@@ -575,14 +639,13 @@ Value getblocktemplate(const Array& params, bool fHelp)
     result.push_back(Pair("transactions", transactions));
     result.push_back(Pair("coinbaseaux", aux));
     result.push_back(Pair("coinbasevalue", (int64_t)pblock->vtx[0].vout[0].nValue));
-    result.push_back(Pair("target", hashTarget.GetHex()));
     result.push_back(Pair("mintime", (int64_t)pindexPrev->GetMedianTimePast()+1));
     result.push_back(Pair("mutable", aMutable));
     result.push_back(Pair("noncerange", "00000000ffffffff"));
     result.push_back(Pair("sigoplimit", (int64_t)MAX_BLOCK_SIGOPS));
     result.push_back(Pair("sizelimit", (int64_t)MAX_BLOCK_SIZE));
     result.push_back(Pair("curtime", (int64_t)pblock->nTime));
-    result.push_back(Pair("bits", HexBits(pblock->nBits)));
+    result.push_back(Pair("bits", HexBits(pblock->nDifficulty)));
     result.push_back(Pair("height", (int64_t)(pindexPrev->nHeight+1)));
 
     return result;

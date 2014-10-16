@@ -19,6 +19,7 @@
 #include "sync.h"
 #include "txmempool.h"
 #include "uint256.h"
+#include "PoWCore/src/PoW.h"
 
 #include <algorithm>
 #include <exception>
@@ -32,6 +33,12 @@
 class CBlockIndex;
 class CBloomFilter;
 class CInv;
+
+/** genesis hashes */
+#define GENESIS_HASH ""
+#define GENESIS_MERKLE ""
+#define GENESIS_TN_HASH ""
+#define GENESIS_TIME 1413914400
 
 /** The maximum allowed size for a serialized block, in bytes (network rule) */
 static const unsigned int MAX_BLOCK_SIZE = 1000000;
@@ -156,10 +163,10 @@ bool ProcessMessages(CNode* pfrom);
 bool SendMessages(CNode* pto, bool fSendTrickle);
 /** Run an instance of the script checking thread */
 void ThreadScriptCheck();
-/** Check whether a block hash satisfies the proof-of-work requirement specified by nBits */
-bool CheckProofOfWork(uint256 hash, unsigned int nBits);
+/** Check whether a block hash satisfies the proof-of-work requirement specified by nDifficulty */
+bool CheckProofOfWork(const uint256 hash, const uint16_t nShift, const std::vector<uint8_t> *const nAdd, const uint64_t nDifficulty);
 /** Calculate the minimum amount of work a received block needs, without knowing its direct parent */
-unsigned int ComputeMinWork(unsigned int nBase, int64_t nTime);
+uint64_t ComputeMinWork(uint64_t nBase, int64_t nTime);
 /** Get the number of active peers */
 int GetNumBlocksOfPeers();
 /** Check whether we are doing an initial block download (synchronizing from disk or network) */
@@ -170,8 +177,8 @@ std::string GetWarnings(std::string strFor);
 bool GetTransaction(const uint256 &hash, CTransaction &tx, uint256 &hashBlock, bool fAllowSlow = false);
 /** Find the best known block, and make it the tip of the block chain */
 bool ActivateBestChain(CValidationState &state);
-int64_t GetBlockValue(int nHeight, int64_t nFees);
-unsigned int GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock);
+int64_t GetBlockValue(int nHeight, int64_t nFees, uint64_t nDifficulty);
+uint64_t GetNextWorkRequired(const CBlockIndex* pindexLast, const CBlockHeader *pblock);
 
 void UpdateTime(CBlockHeader& block, const CBlockIndex* pindexPrev);
 
@@ -721,12 +728,17 @@ public:
     // Verification status of this block. See enum BlockStatus
     unsigned int nStatus;
 
+    // pow utils
+    PoWUtils *utils;
+
     // block header
     int nVersion;
     uint256 hashMerkleRoot;
     unsigned int nTime;
-    unsigned int nBits;
+    uint64_t nDifficulty;
     unsigned int nNonce;
+    uint16_t nShift;
+    std::vector<unsigned char> nAdd;
 
     // (memory only) Sequencial id assigned to distinguish order in which blocks are received.
     uint32_t nSequenceId;
@@ -748,8 +760,11 @@ public:
         nVersion       = 0;
         hashMerkleRoot = 0;
         nTime          = 0;
-        nBits          = 0;
+        nDifficulty    = 0;
         nNonce         = 0;
+        nShift = 0;
+        utils = new PoWUtils();
+        nAdd.assign(1, 0);
     }
 
     CBlockIndex(CBlockHeader& block)
@@ -769,8 +784,11 @@ public:
         nVersion       = block.nVersion;
         hashMerkleRoot = block.hashMerkleRoot;
         nTime          = block.nTime;
-        nBits          = block.nBits;
+        nDifficulty    = block.nDifficulty;
         nNonce         = block.nNonce;
+        nShift         = block.nShift;
+        nAdd.assign(block.nAdd.begin(), block.nAdd.end());
+        utils          = new PoWUtils();
     }
 
     CDiskBlockPos GetBlockPos() const {
@@ -799,8 +817,10 @@ public:
             block.hashPrevBlock = pprev->GetBlockHash();
         block.hashMerkleRoot = hashMerkleRoot;
         block.nTime          = nTime;
-        block.nBits          = nBits;
+        block.nDifficulty    = nDifficulty;
         block.nNonce         = nNonce;
+        block.nShift = nShift;
+        block.nAdd.assign(nAdd.begin(), nAdd.end());
         return block;
     }
 
@@ -816,16 +836,23 @@ public:
 
     CBigNum GetBlockWork() const
     {
+        std::vector<uint8_t> work;
+        utils->target_work(&work, nDifficulty);
+
+        /* insert 0 a the begining to avoid sig problems */
+        work.push_back(0);
+
         CBigNum bnTarget;
-        bnTarget.SetCompact(nBits);
+        bnTarget.setvch(work);
+
         if (bnTarget <= 0)
             return 0;
-        return (CBigNum(1)<<256) / (bnTarget+1);
+        return bnTarget;
     }
 
     bool CheckIndex() const
     {
-        return CheckProofOfWork(GetBlockHash(), nBits);
+        return CheckProofOfWork(GetBlockHash(), nShift, &nAdd, nDifficulty);
     }
 
     enum { nMedianTimeSpan=11 };
@@ -903,8 +930,10 @@ public:
         READWRITE(hashPrev);
         READWRITE(hashMerkleRoot);
         READWRITE(nTime);
-        READWRITE(nBits);
+        READWRITE(nDifficulty);
         READWRITE(nNonce);
+        READWRITE(nShift);
+        READWRITE(nAdd);
     )
 
     uint256 GetBlockHash() const
@@ -914,11 +943,12 @@ public:
         block.hashPrevBlock   = hashPrev;
         block.hashMerkleRoot  = hashMerkleRoot;
         block.nTime           = nTime;
-        block.nBits           = nBits;
+        block.nDifficulty     = nDifficulty;
         block.nNonce          = nNonce;
+        block.nShift          = nShift;
+        block.nAdd.assign(nAdd.begin(), nAdd.end());
         return block.GetHash();
     }
-
 
     std::string ToString() const
     {

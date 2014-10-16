@@ -10,47 +10,44 @@
 #include "net.h"
 #ifdef ENABLE_WALLET
 #include "wallet.h"
+#include "PoWCore/src/PoW.h"
+#include "PoWCore/src/PoWProcessor.h"
+#include "PoWCore/src/PoWUtils.h"
+#include "PoWCore/src/Sieve.h"
 #endif
 //////////////////////////////////////////////////////////////////////////////
 //
 // GapcoinMiner
 //
 
-int static FormatHashBlocks(void* pbuffer, unsigned int len)
-{
-    unsigned char* pdata = (unsigned char*)pbuffer;
-    unsigned int blocks = 1 + ((len + 8) / 64);
-    unsigned char* pend = pdata + 64 * blocks;
-    memset(pdata + len, 0, 64 * blocks - len);
-    pdata[len] = 0x80;
-    unsigned int bits = len * 8;
-    pend[-1] = (bits >> 0) & 0xff;
-    pend[-2] = (bits >> 8) & 0xff;
-    pend[-3] = (bits >> 16) & 0xff;
-    pend[-4] = (bits >> 24) & 0xff;
-    return blocks;
-}
+class BlockProcessor : public PoWProcessor {
+  
+  public:
 
-static const unsigned int pSHA256InitState[8] =
-{0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19};
+    BlockProcessor(CBlock *pblock, CWallet *wallet, CReserveKey *reservekey) : PoWProcessor() {
+      this->pblock = pblock;
+      this->wallet = wallet;
+      this->reservekey = reservekey;
+    }
 
-void SHA256Transform(void* pstate, void* pinput, const void* pinit)
-{
-    SHA256_CTX ctx;
-    unsigned char data[64];
+    bool process(PoW *pow) {
+      SetThreadPriority(THREAD_PRIORITY_NORMAL);
 
-    SHA256_Init(&ctx);
+      pow->get_adder(&pblock->nAdd);
+      bool ret = CheckWork(pblock, *wallet, *reservekey);
 
-    for (int i = 0; i < 16; i++)
-        ((uint32_t*)data)[i] = ByteReverse(((uint32_t*)pinput)[i]);
+      SetThreadPriority(THREAD_PRIORITY_LOWEST);
+      return !ret;
+    }
 
-    for (int i = 0; i < 8; i++)
-        ctx.h[i] = ((uint32_t*)pinit)[i];
+  private:
 
-    SHA256_Update(&ctx, data, sizeof(data));
-    for (int i = 0; i < 8; i++)
-        ((uint32_t*)pstate)[i] = ctx.h[i];
-}
+    CBlock *pblock;
+    CWallet *wallet;
+    CReserveKey *reservekey;
+
+};
+
 
 // Some explaining would be appreciated
 class COrphan
@@ -321,14 +318,16 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
         nLastBlockSize = nBlockSize;
         LogPrintf("CreateNewBlock(): total size %u\n", nBlockSize);
 
-        pblock->vtx[0].vout[0].nValue = GetBlockValue(pindexPrev->nHeight+1, nFees);
-        pblocktemplate->vTxFees[0] = -nFees;
-
         // Fill in header
         pblock->hashPrevBlock  = pindexPrev->GetBlockHash();
         UpdateTime(*pblock, pindexPrev);
-        pblock->nBits          = GetNextWorkRequired(pindexPrev, pblock);
+        pblock->nDifficulty    = GetNextWorkRequired(pindexPrev, pblock);
+        pblock->nShift         = nMiningShift;
         pblock->nNonce         = 0;
+
+        pblock->vtx[0].vout[0].nValue = GetBlockValue(pindexPrev->nHeight+1, nFees, GetNextWorkRequired(pindexPrev, pblock));
+        pblocktemplate->vTxFees[0] = -nFees;
+
         pblock->vtx[0].vin[0].scriptSig = CScript() << OP_0 << OP_0;
         pblocktemplate->vTxSigOps[0] = GetLegacySigOpCount(pblock->vtx[0]);
 
@@ -362,93 +361,20 @@ void IncrementExtraNonce(CBlock* pblock, CBlockIndex* pindexPrev, unsigned int& 
 }
 
 
-void FormatHashBuffers(CBlock* pblock, char* pmidstate, char* pdata, char* phash1)
-{
-    //
-    // Pre-build hash buffers
-    //
-    struct
-    {
-        struct unnamed2
-        {
-            int nVersion;
-            uint256 hashPrevBlock;
-            uint256 hashMerkleRoot;
-            unsigned int nTime;
-            unsigned int nBits;
-            unsigned int nNonce;
-        }
-        block;
-        unsigned char pchPadding0[64];
-        uint256 hash1;
-        unsigned char pchPadding1[64];
-    }
-    tmp;
-    memset(&tmp, 0, sizeof(tmp));
-
-    tmp.block.nVersion       = pblock->nVersion;
-    tmp.block.hashPrevBlock  = pblock->hashPrevBlock;
-    tmp.block.hashMerkleRoot = pblock->hashMerkleRoot;
-    tmp.block.nTime          = pblock->nTime;
-    tmp.block.nBits          = pblock->nBits;
-    tmp.block.nNonce         = pblock->nNonce;
-
-    FormatHashBlocks(&tmp.block, sizeof(tmp.block));
-    FormatHashBlocks(&tmp.hash1, sizeof(tmp.hash1));
-
-    // Byte swap all the input buffer
-    for (unsigned int i = 0; i < sizeof(tmp)/4; i++)
-        ((unsigned int*)&tmp)[i] = ByteReverse(((unsigned int*)&tmp)[i]);
-
-    // Precalc the first half of the first hash, which stays constant
-    SHA256Transform(pmidstate, &tmp.block, pSHA256InitState);
-
-    memcpy(pdata, &tmp.block, 128);
-    memcpy(phash1, &tmp.hash1, 64);
-}
-
 #ifdef ENABLE_WALLET
 //////////////////////////////////////////////////////////////////////////////
 //
 // Internal miner
 //
 double dHashesPerSec = 0.0;
-int64_t nHPSTimerStart = 0;
-
-//
-// ScanHash scans nonces looking for a hash with at least some zero bits.
-// It operates on big endian data.  Caller does the byte reversing.
-// All input buffers are 16-byte aligned.  nNonce is usually preserved
-// between calls, but periodically or if nNonce is 0xffff0000 or above,
-// the block is rebuilt and nNonce starts over at zero.
-//
-unsigned int static ScanHash_CryptoPP(char* pmidstate, char* pdata, char* phash1, char* phash, unsigned int& nHashesDone)
-{
-    unsigned int& nNonce = *(unsigned int*)(pdata + 12);
-    for (;;)
-    {
-        // Crypto++ SHA256
-        // Hash pdata using pmidstate as the starting state into
-        // pre-formatted buffer phash1, then hash phash1 into phash
-        nNonce++;
-        SHA256Transform(phash1, pdata, pmidstate);
-        SHA256Transform(phash, phash1, pSHA256InitState);
-
-        // Return the nonce if the hash has at least some zero bits,
-        // caller will check if it has enough to reach the target
-        if (((unsigned short*)phash)[14] == 0)
-            return nNonce;
-
-        // If nothing found after trying for a while, return -1
-        if ((nNonce & 0xffff) == 0)
-        {
-            nHashesDone = 0xffff+1;
-            return (unsigned int) -1;
-        }
-        if ((nNonce & 0xfff) == 0)
-            boost::this_thread::interruption_point();
-    }
-}
+double d10GapsPerHour = 0.0;
+double d15GapsPerHour = 0.0;
+uint64_t nMiningSieveSize = 1048576;
+uint64_t nMiningPrimes = 128000;
+uint16_t nMiningShift = 20;
+static std::vector<double> dThreadHashesPerSec;
+static std::vector<double> dThread10GapsPerHour;
+static std::vector<double> dThread15GapsPerHour;
 
 CBlockTemplate* CreateNewBlockWithKey(CReserveKey& reservekey)
 {
@@ -463,14 +389,19 @@ CBlockTemplate* CreateNewBlockWithKey(CReserveKey& reservekey)
 bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
 {
     uint256 hash = pblock->GetHash();
-    uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
+    PoW pow(new std::vector<uint8_t>(hash.begin(), hash.end()), 
+            pblock->nShift, 
+            &pblock->nAdd, 
+            pblock->nDifficulty);
 
-    if (hash > hashTarget)
+    uint64_t nDifficulty = pow.difficulty();
+
+    if (nDifficulty < pblock->nDifficulty)
         return false;
 
     //// debug print
     LogPrintf("GapcoinMiner:\n");
-    LogPrintf("proof-of-work found  \n  hash: %s  \ntarget: %s\n", hash.GetHex(), hashTarget.GetHex());
+    LogPrintf("proof-of-work found  \ndifficulty: %" PRIu64 "  \ntarget: %" PRIu64 "\n", nDifficulty, pblock->nDifficulty);
     pblock->print();
     LogPrintf("generated %s\n", FormatMoney(pblock->vtx[0].vout[0].nValue));
 
@@ -498,7 +429,7 @@ bool CheckWork(CBlock* pblock, CWallet& wallet, CReserveKey& reservekey)
     return true;
 }
 
-void static GapcoinMiner(CWallet *pwallet)
+void static GapcoinMiner(CWallet *pwallet, uint64_t nThread, uint64_t numThreads)
 {
     LogPrintf("GapcoinMiner started\n");
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
@@ -507,12 +438,14 @@ void static GapcoinMiner(CWallet *pwallet)
     // Each thread has its own key and counter
     CReserveKey reservekey(pwallet);
     unsigned int nExtraNonce = 0;
+    uint256 hashTarget = uint256("0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
+    Sieve sieve(NULL, nMiningPrimes, nMiningSieveSize); 
 
     try { while (true) {
         if (Params().NetworkID() != CChainParams::REGTEST) {
             // Busy-wait for the network to come online so we don't waste time mining
             // on an obsolete chain. In regtest mode we expect to fly solo.
-            while (vNodes.empty())
+            while (vNodes.empty()) 
                 MilliSleep(1000);
         }
 
@@ -532,94 +465,57 @@ void static GapcoinMiner(CWallet *pwallet)
                ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
         //
-        // Pre-build hash buffers
-        //
-        char pmidstatebuf[32+16]; char* pmidstate = alignup<16>(pmidstatebuf);
-        char pdatabuf[128+16];    char* pdata     = alignup<16>(pdatabuf);
-        char phash1buf[64+16];    char* phash1    = alignup<16>(phash1buf);
-
-        FormatHashBuffers(pblock, pmidstate, pdata, phash1);
-
-        unsigned int& nBlockTime = *(unsigned int*)(pdata + 64 + 4);
-        unsigned int& nBlockBits = *(unsigned int*)(pdata + 64 + 8);
-        unsigned int& nBlockNonce = *(unsigned int*)(pdata + 64 + 12);
-
-
-        //
         // Search
         //
+        BlockProcessor processor(pblock, pwallet, &reservekey);
+        sieve.set_pprocessor(&processor);
         int64_t nStart = GetTime();
-        uint256 hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
-        uint256 hashbuf[2];
-        uint256& hash = *alignup<16>(hashbuf);
+        
+        /* provide unique hashes for each thread */
+        pblock->nNonce = nThread;
+
         while (true)
         {
-            unsigned int nHashesDone = 0;
-            unsigned int nNonceFound;
+            /* header hash has to be greater than 2^255 - 1 */
+            while (pblock->GetHash() <= hashTarget)
+              pblock->nNonce += numThreads;
+            
+            uint256 hash = pblock->GetHash();
+            std::vector<uint8_t> vHash(hash.begin(), hash.end());
 
-            // Crypto++ SHA256
-            nNonceFound = ScanHash_CryptoPP(pmidstate, pdata + 64, phash1,
-                                            (char*)&hash, nHashesDone);
+            PoW pow(&vHash, pblock->nShift, &pblock->nAdd, pblock->nDifficulty);
+            sieve.run_sieve(&pow, NULL);
 
-            // Check if something found
-            if (nNonceFound != (unsigned int) -1)
+            static CCriticalSection cs;
             {
-                for (unsigned int i = 0; i < sizeof(hash)/4; i++)
-                    ((unsigned int*)&hash)[i] = ByteReverse(((unsigned int*)&hash)[i]);
+                LOCK(cs);
 
-                if (hash <= hashTarget)
-                {
-                    // Found a solution
-                    pblock->nNonce = ByteReverse(nNonceFound);
-                    assert(hash == pblock->GetHash());
+                dThreadHashesPerSec[nThread] = sieve.primes_per_sec();
+                dThread10GapsPerHour[nThread] = sieve.gaps10_per_hour();
+                dThread15GapsPerHour[nThread] = sieve.gaps15_per_hour();
+                dHashesPerSec = 0.0;
+                d10GapsPerHour = 0.0;
+                d15GapsPerHour = 0.0;
 
-                    SetThreadPriority(THREAD_PRIORITY_NORMAL);
-                    CheckWork(pblock, *pwallet, reservekey);
-                    SetThreadPriority(THREAD_PRIORITY_LOWEST);
-
-                    // In regression test mode, stop mining after a block is found. This
-                    // allows developers to controllably generate a block on demand.
-                    if (Params().NetworkID() == CChainParams::REGTEST)
-                        throw boost::thread_interrupted();
-
-                    break;
+                for (uint32_t i = 0; i < dThreadHashesPerSec.size(); i++) {
+                  dHashesPerSec += dThreadHashesPerSec[i];
+                  d10GapsPerHour += dThread10GapsPerHour[i];
+                  d15GapsPerHour += dThread15GapsPerHour[i];
                 }
-            }
 
-            // Meter hashes/sec
-            static int64_t nHashCounter;
-            if (nHPSTimerStart == 0)
-            {
-                nHPSTimerStart = GetTimeMillis();
-                nHashCounter = 0;
-            }
-            else
-                nHashCounter += nHashesDone;
-            if (GetTimeMillis() - nHPSTimerStart > 4000)
-            {
-                static CCriticalSection cs;
+                static int64_t nLogTime = 0;
+                if (GetTime() - nLogTime > 30 * 60)
                 {
-                    LOCK(cs);
-                    if (GetTimeMillis() - nHPSTimerStart > 4000)
-                    {
-                        dHashesPerSec = 1000.0 * nHashCounter / (GetTimeMillis() - nHPSTimerStart);
-                        nHPSTimerStart = GetTimeMillis();
-                        nHashCounter = 0;
-                        static int64_t nLogTime;
-                        if (GetTime() - nLogTime > 30 * 60)
-                        {
-                            nLogTime = GetTime();
-                            LogPrintf("hashmeter %6.0f khash/s\n", dHashesPerSec/1000.0);
-                        }
-                    }
+                    nLogTime = GetTime();
+                    LogPrintf("primemeter %6.0f primes/s\n", dHashesPerSec);
                 }
+                
             }
+            
 
             // Check for stop or if block needs to be rebuilt
             boost::this_thread::interruption_point();
             if (vNodes.empty() && Params().NetworkID() != CChainParams::REGTEST)
-                break;
-            if (nBlockNonce >= 0xffff0000)
                 break;
             if (mempool.GetTransactionsUpdated() != nTransactionsUpdatedLast && GetTime() - nStart > 60)
                 break;
@@ -628,18 +524,20 @@ void static GapcoinMiner(CWallet *pwallet)
 
             // Update nTime every few seconds
             UpdateTime(*pblock, pindexPrev);
-            nBlockTime = ByteReverse(pblock->nTime);
+            // Changing pblock->nTime can change work required on testnet:
             if (TestNet())
-            {
-                // Changing pblock->nTime can change work required on testnet:
-                nBlockBits = ByteReverse(pblock->nBits);
-                hashTarget = CBigNum().SetCompact(pblock->nBits).getuint256();
-            }
+              break;
         }
     } }
     catch (boost::thread_interrupted)
     {
         LogPrintf("GapcoinMiner terminated\n");
+
+        static CCriticalSection cs;
+        {
+            LOCK(cs);
+            dHashesPerSec = 0.0;
+        }
         throw;
     }
 }
@@ -665,9 +563,18 @@ void GenerateGapcoins(bool fGenerate, CWallet* pwallet, int nThreads)
     if (nThreads == 0 || !fGenerate)
         return;
 
+    dThreadHashesPerSec.clear();
+    dThread10GapsPerHour.clear();
+    dThread15GapsPerHour.clear();
+
     minerThreads = new boost::thread_group();
-    for (int i = 0; i < nThreads; i++)
-        minerThreads->create_thread(boost::bind(&GapcoinMiner, pwallet));
+    for (int i = 0; i < nThreads; i++) {
+        dThreadHashesPerSec.push_back(0.0);
+        dThread10GapsPerHour.push_back(0.0);
+        dThread15GapsPerHour.push_back(0.0);
+        minerThreads->create_thread(boost::bind(&GapcoinMiner, pwallet, i, nThreads));
+    }
+
 }
 
 #endif

@@ -350,8 +350,10 @@ public:
     uint256 hashPrevBlock;
     uint256 hashMerkleRoot;
     unsigned int nTime;
-    unsigned int nBits;
+    uint64_t nDifficulty;
     unsigned int nNonce;
+    uint16_t nShift;
+    std::vector<unsigned char> nAdd;
 
     CBlockHeader()
     {
@@ -365,8 +367,10 @@ public:
         READWRITE(hashPrevBlock);
         READWRITE(hashMerkleRoot);
         READWRITE(nTime);
-        READWRITE(nBits);
+        READWRITE(nDifficulty);
         READWRITE(nNonce);
+        READWRITE(nShift);
+        READWRITE(nAdd);
     )
 
     void SetNull()
@@ -375,13 +379,15 @@ public:
         hashPrevBlock = 0;
         hashMerkleRoot = 0;
         nTime = 0;
-        nBits = 0;
+        nDifficulty = 0;
         nNonce = 0;
+        nShift = 0;
+        nAdd.assign(1, 0);
     }
 
     bool IsNull() const
     {
-        return (nBits == 0);
+        return (nDifficulty == 0);
     }
 
     uint256 GetHash() const;
@@ -433,8 +439,10 @@ public:
         block.hashPrevBlock  = hashPrevBlock;
         block.hashMerkleRoot = hashMerkleRoot;
         block.nTime          = nTime;
-        block.nBits          = nBits;
+        block.nDifficulty    = nDifficulty;
         block.nNonce         = nNonce;
+        block.nShift = nShift;
+        block.nAdd.assign(nAdd.begin(), nAdd.end());
         return block;
     }
 
