@@ -1,0 +1,3 @@
+[submodule "src/PoWCore"]
+	path = src/PoWCore
+	url = https://github.com/gapcoin/Gapcoin-PoWCore.git
