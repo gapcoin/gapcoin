@@ -2,12 +2,19 @@ UNIX BUILD NOTES
 ====================
 Some notes on how to build Gapcoin in Unix. 
 
-To Build
+To Build from git
 ---------------------
-
-	./autogen.sh
-	./configure
-	make
+  
+```bash
+git clone https://github.com/gapcoin/gapcoin.git
+cd gapcoin
+git submodule init
+git submodule update
+./autogen.sh
+./configure
+make
+make install # optional
+```
 
 This will build gapcoin-qt as well if the dependencies are met.
 
@@ -20,6 +27,8 @@ Dependencies
  libdb4.8    | Berkeley DB      | Wallet storage
  libboost    | Boost            | C++ Library
  miniupnpc   | UPnP Support     | Optional firewall-jumping support
+ gmp         | faster hashing   | Multiple precision arithmetic library
+ mpfr        | faster hashing   | Multiple precision floating-point library
  qt          | GUI              | GUI toolkit
  protobuf    | Payments in GUI  | Data interchange format used for payment protocol
  libqrencode | QR codes in GUI  | Optional for generating QR codes
@@ -54,16 +63,11 @@ Build requirements:
 	sudo apt-get install build-essential
 	sudo apt-get install libtool autotools-dev autoconf
 	sudo apt-get install libssl-dev
+  sudo apt-get install libgmp-dev libmpfr-dev
 
 for Ubuntu 12.04 and later:
 
 	sudo apt-get install libboost-all-dev
-
- db4.8 packages are available [here](https://launchpad.net/~gapcoin/+archive/gapcoin).
- You can add the repository using the following command:
-
-        sudo add-apt-repository ppa:gapcoin/gapcoin
-        sudo apt-get update
 
  Ubuntu 12.04 and later have packages for libdb5.1-dev and libdb5.1++-dev,
  but using these will break binary wallet compatibility, and is not recommended.
@@ -225,7 +229,3 @@ disable-wallet mode with:
     ./configure --disable-wallet
 
 In this case there is no dependency on Berkeley DB 4.8.
-
-Mining is also possible in disable-wallet mode, but only using the `getblocktemplate` RPC
-call not `getwork`.
-
