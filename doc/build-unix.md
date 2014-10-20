@@ -60,10 +60,7 @@ Dependency Build Instructions: Ubuntu & Debian
 ----------------------------------------------
 Build requirements:
 
-	sudo apt-get install build-essential
-	sudo apt-get install libtool autotools-dev autoconf
-	sudo apt-get install libssl-dev
-  sudo apt-get install libgmp-dev libmpfr-dev
+	sudo apt-get install build-essential libtool autotools-dev autoconf libssl-dev libgmp-dev libmpfr-dev
 
 for Ubuntu 12.04 and later:
 
