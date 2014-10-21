@@ -17,11 +17,11 @@
 
 #include <boost/assign/list_of.hpp>
 
-#define GENESIS_NONCE 0
-#define GENESIS_ADDER { 0 }
+#define GENESIS_NONCE 13370
+#define GENESIS_ADDER { 233, 156, 15 }
 #define GENESIS_SHIFT 20
-#define GENESIS_TN_NONCE 0
-#define GENESIS_TN_ADDER { 0 }
+#define GENESIS_TN_NONCE 1
+#define GENESIS_TN_ADDER { 25, 1 }
 
 using namespace boost::assign;
 
@@ -31,7 +31,7 @@ using namespace boost::assign;
 /* ip seeds */
 unsigned int pnSeed[] =
 {
-  /* coming at launch */
+  0x9b8fe3d4, 0x52458368, 0x092cd75f, 0xb324fe9b, 0xc0e27fc7,
 };
 
 class CMainParams : public CChainParams {
@@ -49,15 +49,7 @@ public:
         nRPCPort = 31397;
         nSubsidyHalvingInterval = 420000;
 
-        // Build the genesis block. Note that the output of the genesis coinbase cannot
-        // be spent as it did not originally exist in the database.
-        //
-        // CBlock(hash=000000000019d6, ver=1, hashPrevBlock=00000000000000, hashMerkleRoot=4a5e1e, nTime=1231006505, nDifficulty=1d00ffff, nNonce=2083236893, vtx=1)
-        //   CTransaction(hash=4a5e1e, ver=1, vin.size=1, vout.size=1, nLockTime=0)
-        //     CTxIn(COutPoint(000000, -1), coinbase 04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73)
-        //     CTxOut(nValue=50.00000000, scriptPubKey=0x5F1DF16B2B704C8A578D0B)
-        //   vMerkleTree: 4a5e1e
-        const char* pszTimestamp = "coming at launch";
+        const char* pszTimestamp = "The Times 15/Oct/2014 US data sends global stocks into tail-spin";
         CTransaction txNew;
         txNew.vin.resize(1);
         txNew.vout.resize(1);
@@ -76,10 +68,6 @@ public:
         genesis.nAdd.assign(nAdd, nAdd + sizeof(nAdd) / sizeof(uint8_t));
 
         hashGenesisBlock = genesis.GetHash();
-
-        /* exit without failure */
-        printf("Congratulations, you are well prepared for the launch.\n");
-        exit(EXIT_SUCCESS);
 
         assert(hashGenesisBlock == uint256(GENESIS_HASH));
         assert(genesis.hashMerkleRoot == uint256(GENESIS_MERKLE));
@@ -146,10 +134,6 @@ public:
 
         hashGenesisBlock = genesis.GetHash();
 
-        /* exit without failure */
-        printf("Congratulations, you are well prepared for the launch.\n");
-        exit(EXIT_SUCCESS);
-
         assert(hashGenesisBlock == uint256(GENESIS_TN_HASH));
 
         vFixedSeeds.clear();
@@ -188,10 +172,6 @@ public:
         hashGenesisBlock = genesis.GetHash();
         nDefaultPort = 18444;
         strDataDir = "regtest";
-
-        /* exit without failure */
-        printf("Congratulations, you are well prepared for the launch.\n");
-        exit(EXIT_SUCCESS);
 
         assert(hashGenesisBlock == uint256(GENESIS_HASH));
 

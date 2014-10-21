@@ -35,9 +35,9 @@ class CBloomFilter;
 class CInv;
 
 /** genesis hashes */
-#define GENESIS_HASH ""
-#define GENESIS_MERKLE ""
-#define GENESIS_TN_HASH ""
+#define GENESIS_HASH "0xe798f3ae4f57adcf25740fe43100d95ec4fd5d43a1568bc89e2b25df89ff6cb0"
+#define GENESIS_MERKLE "0x261010cfad2ae26a355e56c2551ea2cc05549df11db7f40db7c2b9e3b40e1194"
+#define GENESIS_TN_HASH "0xcee5f695d016eda5137a820588ea1891eb107bb94daccff819849507e5bb17cc"
 #define GENESIS_TIME 1413914400
 
 /** The maximum allowed size for a serialized block, in bytes (network rule) */
