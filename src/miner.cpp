@@ -367,14 +367,13 @@ void IncrementExtraNonce(CBlock* pblock, CBlockIndex* pindexPrev, unsigned int& 
 // Internal miner
 //
 double dHashesPerSec = 0.0;
-double d10GapsPerHour = 0.0;
+double dTestsPerSec = 0.0;
 double d15GapsPerHour = 0.0;
-uint64_t nMiningSieveSize = 1048576;
-uint64_t nMiningPrimes = 128000;
-uint16_t nMiningShift = 20;
+uint64_t nMiningSieveSize = 33554432;
+uint64_t nMiningPrimes = 900000;
+uint16_t nMiningShift = 25;
 static std::vector<double> dThreadHashesPerSec;
-static std::vector<double> dThread10GapsPerHour;
-static std::vector<double> dThread15GapsPerHour;
+static std::vector<double> dThreadTestsPerSec;
 
 CBlockTemplate* CreateNewBlockWithKey(CReserveKey& reservekey)
 {
@@ -491,16 +490,13 @@ void static GapcoinMiner(CWallet *pwallet, uint64_t nThread, uint64_t numThreads
                 LOCK(cs);
 
                 dThreadHashesPerSec[nThread] = sieve.primes_per_sec();
-                dThread10GapsPerHour[nThread] = sieve.gaps10_per_hour();
-                dThread15GapsPerHour[nThread] = sieve.gaps15_per_hour();
+                dThreadTestsPerSec[nThread] = sieve.tests_per_second();
                 dHashesPerSec = 0.0;
-                d10GapsPerHour = 0.0;
-                d15GapsPerHour = 0.0;
+                dTestsPerSec  = 0.0;
 
                 for (uint32_t i = 0; i < dThreadHashesPerSec.size(); i++) {
                   dHashesPerSec += dThreadHashesPerSec[i];
-                  d10GapsPerHour += dThread10GapsPerHour[i];
-                  d15GapsPerHour += dThread15GapsPerHour[i];
+                  dTestsPerSec  += dThreadTestsPerSec[i];
                 }
 
                 static int64_t nLogTime = 0;
@@ -564,14 +560,12 @@ void GenerateGapcoins(bool fGenerate, CWallet* pwallet, int nThreads)
         return;
 
     dThreadHashesPerSec.clear();
-    dThread10GapsPerHour.clear();
-    dThread15GapsPerHour.clear();
+    dThreadTestsPerSec.clear();
 
     minerThreads = new boost::thread_group();
     for (int i = 0; i < nThreads; i++) {
         dThreadHashesPerSec.push_back(0.0);
-        dThread10GapsPerHour.push_back(0.0);
-        dThread15GapsPerHour.push_back(0.0);
+        dThreadTestsPerSec.push_back(0.0);
         minerThreads->create_thread(boost::bind(&GapcoinMiner, pwallet, i, nThreads));
     }
 

@@ -281,8 +281,7 @@ Value getmininginfo(const Array& params, bool fHelp)
             "  \"sieveprimes\": n           (numeric, optional) The amount of primes used in the sieve.\n"
             "  \"shift\": n                 (numeric, optional) The header shift.\n"
             "  \"primespersec\": n          (numeric) The primes per second of the generation, or 0 if no generation.\n"
-            "  \"10gapsperhour\": xxx.xxxxx (numeric) The found 10 gaps per hour\n"
-            "  \"15gapsperhour\": xxx.xxxxx (numeric) The found 15 gaps per hour\n"
+            "  \"testspersec\": n           (numeric) The primes tests per second of the generation, or 0 if no generation.\n"
             "  \"gapsperday\": xxx.xxxxx    (numeric) The estimated (difficulty) gaps per day\n"
             "  \"pooledtx\": n              (numeric) The size of the mem pool\n"
             "  \"testnet\": true|false      (boolean) If using testnet or not\n"
@@ -313,8 +312,7 @@ Value getmininginfo(const Array& params, bool fHelp)
     obj.push_back(Pair("sieveprimes",      nMiningPrimes));
     obj.push_back(Pair("shift",            nMiningShift));
     obj.push_back(Pair("primespersec",     getprimespersec(params, false)));
-    obj.push_back(Pair("10gapsperhour",    d10GapsPerHour));
-    obj.push_back(Pair("15gapsperhour",    d15GapsPerHour));
+    obj.push_back(Pair("testspersec",      (int) dTestsPerSec));
     obj.push_back(Pair("gapsperday",       powUtils->gaps_per_day(dHashesPerSec, difficulty)));
 #endif
     obj.push_back(Pair("networkprimesps",    getnetworkprimesps(params, false)));
