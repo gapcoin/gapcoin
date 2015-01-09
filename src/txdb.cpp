@@ -188,6 +188,7 @@ bool CBlockTreeDB::LoadBlockIndexGuts()
     CDataStream ssKeySet(SER_DISK, CLIENT_VERSION);
     ssKeySet << make_pair('b', uint256(0));
     pcursor->Seek(ssKeySet.str());
+    bool slowStart = GetBoolArg("-slowstart", false);
 
     // Load mapBlockIndex
     while (pcursor->Valid()) {
@@ -220,7 +221,7 @@ bool CBlockTreeDB::LoadBlockIndexGuts()
                 pindexNew->nStatus        = diskindex.nStatus;
                 pindexNew->nTx            = diskindex.nTx;
 
-                if (!pindexNew->CheckIndex())
+                if (slowStart && !pindexNew->CheckIndex())
                     return error("LoadBlockIndex() : CheckIndex failed: %s", pindexNew->ToString());
 
                 pcursor->Next();
